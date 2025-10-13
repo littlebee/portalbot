@@ -1,0 +1,44 @@
+bot_name: "basic_bot"
+version: "0.1.0"
+
+# environment variables that are common to all services
+# these are evaluated before the service specific
+# environment variables.  Service environment variables
+# will override these if they have the same key.
+env:
+  BB_LOG_ALL_MESSAGES: "false"
+
+# you can also set environment variables that are specific
+# to the BB_ENV environment variable.  This is useful for
+# setting up different configurations for development and
+# production environments.
+# development_env:
+#   BB_LOG_ALL_MESSAGES: "true"
+# production_env:
+#   BB_LOG_ALL_MESSAGES: "false"
+
+services:
+  - name: "central_hub"
+    run: "python -m basic_bot.services.central_hub"
+    # you can set environment variables that are only applied
+    # to a specific service
+    development_env:
+      BB_LOG_ALL_MESSAGES: "true"
+
+  - name: "web_server"
+    run: "python -m basic_bot.services.web_server"
+
+  # If you have a camera attached to your device, you can
+  # use the basic_bot vision service to provide image feed
+  # and in frame object detection.
+  #
+  # - name: "vision"
+  #   run: "python -m basic_bot.services.vision"
+
+  # optional system_stats service
+  # - name: "system_stats"
+  #   run: "python -m basic_bot.services.system_stats"
+
+  - name: "MyService"
+    run: "python src/my_service.py"
+
