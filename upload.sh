@@ -22,7 +22,7 @@ if [ "$1" == "" ]; then
 fi
 target_host=$1
 
-target_dir="/home/$USER/basic_bot"
+target_dir="/home/$USER/portalbot"
 if [ "$2" != "" ]; then
   target_dir=$2
 fi
@@ -34,20 +34,14 @@ TARGET_HOST=$1
 
 rsync --progress --partial \
 --exclude=node_modules \
---exclude=persisted_state.json \
---exclude=data/ \
---exclude=recorded_video/ \
 --exclude=logs/ \
+--exclude=pids/ \
 --exclude=*.pid \
 --exclude=__pycache__ \
 --exclude=.pytest_cache \
 --exclude=.git \
---exclude=*-test-output.* \
-
-# this will remove any old files that are no
-# longer in the project, but it is dangerous.
-# Uncomment with caution and only if you are
-# NOT doing remote editing of files.
-# --delete \
-
+--exclude=.vscode \
+--exclude=.mypy_cache \
+--exclude="*_test_output.*" \
+--delete \
 -avz . $target_host:$target_dir

@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        python-version: [3.9]
+
+    steps:
+      - uses: actions/upload-artifact@v4
+        with:
+          name: logs
+          path: logs/*
+      - name: Check out repository
+        uses: actions/checkout@v2
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          sudo apt install -y python3-pip
+          pip install --upgrade pip
+          pip install pytest
+          pip install git+https://github.com/littlebee/basic_bot.git@main
+          pip install -r requirements.txt
+
+      - name: Make .sh executable
+        run: chmod +x ./*.sh
+
+      - name: Lint and type check
+        run: ./lint.sh
+
+      - name: Run tests
+        run: ./test.sh
+
+      - name: Upload log artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs
+          path: ./logs/*
