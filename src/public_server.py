@@ -35,7 +35,7 @@ active_rooms: Dict[str, Set[str]] = {}  # room_name -> Set[client_id]
 client_websockets: Dict[str, WebSocket] = {}  # client_id -> WebSocket
 
 # Mount static files and templates
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/static", StaticFiles(directory="webapp/public"), name="static")
 templates = Jinja2Templates(directory="templates")
 
 

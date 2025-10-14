@@ -1,34 +1,59 @@
-import logo from './logo.svg'
+/**
+ * Portalbot VideoChat App
+ * Main component for WebRTC video chat application
+ */
+
+import { useWebRTC } from '@/hooks/useWebRTC'
+import StatusBar from '@/components/StatusBar'
+import JoinRoom from '@/components/JoinRoom'
+import VideoSection from '@/components/VideoSection'
+import DebugInfo from '@/components/DebugInfo'
+import styles from './App.module.css'
 
 function App() {
+  const webrtc = useWebRTC()
+
   return (
-    <div className="text-center">
-      <header className="min-h-screen flex flex-col items-center justify-center bg-[#282c34] text-white text-[calc(10px+2vmin)]">
-        <img
-          src={logo}
-          className="h-[40vmin] pointer-events-none animate-[spin_20s_linear_infinite]"
-          alt="logo"
-        />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
+    <div className={styles.container}>
+      <header className={styles.header}>
+        <h1 className={styles.title}>Portalbot</h1>
+        <p className={styles.subtitle}>
+          Secure Video Chat with TURN Server Support
         </p>
-        <a
-          className="text-[#61dafb] hover:underline"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-        <a
-          className="text-[#61dafb] hover:underline"
-          href="https://tanstack.com"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn TanStack
-        </a>
       </header>
+
+      <StatusBar
+        status={webrtc.connectionStatus}
+        statusText={webrtc.statusText}
+        roomName={webrtc.currentRoom}
+      />
+
+      {!webrtc.currentRoom ? (
+        <JoinRoom onJoin={webrtc.joinRoom} />
+      ) : (
+        <>
+          <VideoSection
+            localStream={webrtc.localStream}
+            remoteStream={webrtc.remoteStream}
+            onToggleAudio={webrtc.toggleAudio}
+            onToggleVideo={webrtc.toggleVideo}
+            onLeave={webrtc.leaveRoom}
+            isAudioEnabled={webrtc.isAudioEnabled}
+            isVideoEnabled={webrtc.isVideoEnabled}
+            connectionState={webrtc.connectionState}
+          />
+
+          <DebugInfo
+            connectionState={webrtc.connectionState}
+            iceState={webrtc.iceState}
+            signalingState={webrtc.signalingState}
+          />
+        </>
+      )}
+
+      {webrtc.error && (
+        <div className={styles.errorMessage}>{webrtc.error}</div>
+      )}
     </div>
   )
 }
