@@ -28,17 +28,10 @@ services:
   - name: "web_server"
     run: "python -m basic_bot.services.web_server"
 
-  # If you have a camera attached to your device, you can
-  # use the basic_bot vision service to provide image feed
-  # and in frame object detection.
-  #
-  # - name: "vision"
-  #   run: "python -m basic_bot.services.vision"
+  - name: "vision"
+    run: "python -m basic_bot.services.vision"
 
   # optional system_stats service
-  # - name: "system_stats"
-  #   run: "python -m basic_bot.services.system_stats"
-
-  - name: "MyService"
-    run: "python src/my_service.py"
+  - name: "system_stats"
+    run: "python -m basic_bot.services.system_stats"
 
