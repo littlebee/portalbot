@@ -1,73 +1,36 @@
-import { useState, useEffect } from "react";
+import logo from './logo.svg'
 
-import {
-    DEFAULT_HUB_STATE,
-    connectToHub,
-    addHubStateUpdatedListener,
-    removeHubStateUpdatedListener,
-    IHubState,
-} from "./util/hubState";
-
-import { Header } from "./Header";
-import { HubStateDialog } from "./HubStateDialog";
-import { WorthlessCounter } from "./components/WorthlessCounter";
-
-interface AppProps {
-    hubPort?: number;
-    autoReconnect?: boolean;
+function App() {
+  return (
+    <div className="text-center">
+      <header className="min-h-screen flex flex-col items-center justify-center bg-[#282c34] text-white text-[calc(10px+2vmin)]">
+        <img
+          src={logo}
+          className="h-[40vmin] pointer-events-none animate-[spin_20s_linear_infinite]"
+          alt="logo"
+        />
+        <p>
+          Edit <code>src/App.tsx</code> and save to reload.
+        </p>
+        <a
+          className="text-[#61dafb] hover:underline"
+          href="https://reactjs.org"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Learn React
+        </a>
+        <a
+          className="text-[#61dafb] hover:underline"
+          href="https://tanstack.com"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Learn TanStack
+        </a>
+      </header>
+    </div>
+  )
 }
 
-function App({ hubPort, autoReconnect }: AppProps) {
-    const [hubState, setHubState] = useState<IHubState>(DEFAULT_HUB_STATE);
-    const [isHubStateDialogOpen, setIsHubStateDialogOpen] = useState(false);
-
-    useEffect(() => {
-        addHubStateUpdatedListener(handleHubStateUpdated);
-        connectToHub({ port: hubPort, autoReconnect });
-
-        return () => removeHubStateUpdatedListener(handleHubStateUpdated);
-    }, [hubPort, autoReconnect]);
-
-    const handleHubStateUpdated = (newState: IHubState) => {
-        setHubState({ ...newState });
-    };
-
-    return (
-        <div>
-            <Header
-                hubState={hubState}
-                isHubStateDialogOpen={isHubStateDialogOpen}
-                onHubStateDialogOpen={() => setIsHubStateDialogOpen(true)}
-            />
-            <div className="wrap">
-                <div className="left-frame" id="gap">
-                    <div className="sidebar-buttons">Add your menu here</div>
-                </div>
-                <div className="right-frame">
-                    <div className="bar-panel">
-                        <div className="bar-6"></div>
-                        <div className="bar-7"></div>
-                        <div className="bar-8"></div>
-                        <div className="bar-9">
-                            <div className="bar-9-inside"></div>
-                        </div>
-                        <div className="bar-10"></div>
-                    </div>
-                    <div className="corner-bg">
-                        <div className="corner"></div>
-                    </div>
-                    <div className="content">
-                        <WorthlessCounter value={hubState.worthless_counter} />
-                    </div>
-                </div>
-            </div>
-            <HubStateDialog
-                hubState={hubState}
-                isOpen={isHubStateDialogOpen}
-                onClose={() => setIsHubStateDialogOpen(false)}
-            />
-        </div>
-    );
-}
-
-export default App;
+export default App
