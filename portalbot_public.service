@@ -1,0 +1,29 @@
+[Unit]
+Description=Portalbot Public WebRTC Signaling Server and Web Server
+After=network.target
+Documentation=https://github.com/littlebee/portalbot
+
+[Service]
+Type=simple
+User=bee
+Group=bee
+WorkingDirectory=/home/bee/portalbot
+Environment="PATH=/home/bee/pyenv/wv/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="PORT=5080"
+Environment="DEBUG=False"
+ExecStart=/home/bee/portalbot/start_public.sh
+Restart=always
+RestartSec=10
+RemainAfterExit=yes
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=walkyvalky
+
+[Install]
+WantedBy=multi-user.target
