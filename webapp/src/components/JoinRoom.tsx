@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import styles from './JoinRoom.module.css'
+import { useRooms } from '@/hooks/useRooms'
 
 interface JoinRoomProps {
   onJoin: (roomName: string) => Promise<void>
@@ -7,18 +8,17 @@ interface JoinRoomProps {
 }
 
 export default function JoinRoom({ onJoin, disabled = false }: JoinRoomProps) {
-  const [roomName, setRoomName] = useState('')
-  const [isJoining, setIsJoining] = useState(false)
+  const { enabledRooms, loading, error } = useRooms()
+  const [joiningRoomId, setJoiningRoomId] = useState<string | null>(null)
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!roomName.trim() || isJoining || disabled) return
+  const handleRoomClick = async (roomId: string) => {
+    if (joiningRoomId || disabled) return
 
-    setIsJoining(true)
+    setJoiningRoomId(roomId)
     try {
-      await onJoin(roomName.trim())
+      await onJoin(roomId)
     } finally {
-      setIsJoining(false)
+      setJoiningRoomId(null)
     }
   }
 
@@ -26,28 +26,62 @@ export default function JoinRoom({ onJoin, disabled = false }: JoinRoomProps) {
     <div className={styles.section}>
       <div className={styles.card}>
         <h2>Join a Room</h2>
-        <form onSubmit={handleSubmit} className={styles.inputGroup}>
-          <input
-            type="text"
-            value={roomName}
-            onChange={(e) => setRoomName(e.target.value)}
-            placeholder="Enter room name"
-            autoComplete="off"
-            disabled={isJoining || disabled}
-            className={styles.input}
-          />
-          <button
-            type="submit"
-            disabled={isJoining || disabled || !roomName.trim()}
-            className={`${styles.btn} ${styles.btnPrimary}`}
-          >
-            {isJoining ? 'Joining...' : 'Join Room'}
-          </button>
-        </form>
-        <p className={styles.helpText}>
-          Share the room name with your peer to connect. Maximum 2 participants
-          per room.
-        </p>
+
+        {loading ? (
+          <p className={styles.helpText}>Loading available rooms...</p>
+        ) : error ? (
+          <div className={styles.error}>
+            <p>Error loading rooms: {error}</p>
+            <p className={styles.helpText}>
+              Please check that the server is running and try again.
+            </p>
+          </div>
+        ) : enabledRooms.length === 0 ? (
+          <p className={styles.helpText}>
+            No rooms are currently available. Please check back later.
+          </p>
+        ) : (
+          <>
+            <ul className={styles.roomList}>
+              {enabledRooms.map((room) => (
+                <li key={room.id} className={styles.roomListItem}>
+                  <button
+                    onClick={() => handleRoomClick(room.id)}
+                    disabled={joiningRoomId !== null || disabled}
+                    className={`${styles.roomCard} ${
+                      joiningRoomId === room.id ? styles.roomCardJoining : ''
+                    }`}
+                  >
+                    <img
+                      src={room.image_url}
+                      alt={room.display_name}
+                      className={styles.roomCardImage}
+                    />
+                    <div className={styles.roomCardContent}>
+                      <h3 className={styles.roomCardTitle}>
+                        {room.display_name}
+                      </h3>
+                      <p className={styles.roomCardDescription}>
+                        {room.description}
+                      </p>
+                      <p className={styles.roomCardParticipants}>
+                        Max {room.max_participants} participants
+                      </p>
+                    </div>
+                    {joiningRoomId === room.id && (
+                      <div className={styles.roomCardSpinner}>Joining...</div>
+                    )}
+                  </button>
+                </li>
+              ))}
+            </ul>
+
+            <p className={styles.helpText}>
+              Click on a room to join. Share the room name with your peer to
+              connect together.
+            </p>
+          </>
+        )}
       </div>
     </div>
   )

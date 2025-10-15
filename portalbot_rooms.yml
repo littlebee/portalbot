@@ -1,0 +1,24 @@
+version: "1.0.0"
+default_image_url: "/images/default-room.jpg"
+
+rooms:
+  - id: "lobby"
+    display_name: "Lobby"
+    description: "General meeting room for video chat"
+    image_url: "/images/lobby.jpg"
+    max_participants: 2
+    enabled: true
+
+  - id: "robot-1"
+    display_name: "Robot 1"
+    description: "Connect to Robot 1 for remote control"
+    # image_url not specified - will use default_image_url
+    max_participants: 2
+    enabled: true
+
+  - id: "robot-2"
+    display_name: "Robot 2"
+    description: "Connect to Robot 2 for remote control"
+    image_url: "/images/robot-2.jpg"
+    max_participants: 2
+    enabled: false  # Disabled for maintenance
