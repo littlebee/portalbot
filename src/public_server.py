@@ -13,10 +13,8 @@ import os
 import json
 import uuid
 from typing import Dict, Set, Optional
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -33,16 +31,6 @@ connected_clients: Dict[WebSocket, str] = {}  # WebSocket -> client_id
 client_rooms: Dict[str, Optional[str]] = {}  # client_id -> room_name
 active_rooms: Dict[str, Set[str]] = {}  # room_name -> Set[client_id]
 client_websockets: Dict[str, WebSocket] = {}  # client_id -> WebSocket
-
-# Mount static files and templates
-app.mount("/static", StaticFiles(directory="static"), name="static")
-templates = Jinja2Templates(directory="templates")
-
-
-@app.get("/", response_class=HTMLResponse)
-async def index(request: Request):
-    """Serve the main application page"""
-    return templates.TemplateResponse("index.html", {"request": request})
 
 
 @app.get("/health")
@@ -308,6 +296,11 @@ async def websocket_endpoint(websocket: WebSocket):
             del connected_clients[websocket]
 
 
+# Mount static files and templates from the vite build directory
+# Important: Because we are serving static files from the root, this
+# must be the last route defined or it will override other routes.
+app.mount("/", StaticFiles(directory="webapp/dist/", html=True))
+
 if __name__ == "__main__":
     import uvicorn
 
@@ -320,7 +313,7 @@ if __name__ == "__main__":
     print(f"API docs available at: http://localhost:{port}/docs")
 
     uvicorn.run(
-        "server:app",
+        "public_server:app",
         host="0.0.0.0",
         port=port,
         reload=debug,

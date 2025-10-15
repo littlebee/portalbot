@@ -1,0 +1,46 @@
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 10px;
+}
+
+.subtitle {
+  color: var(--text-secondary);
+  font-size: 1rem;
+}
+
+.errorMessage {
+  background: rgba(220, 38, 38, 0.2);
+  border: 2px solid var(--danger-color);
+  color: var(--text-color);
+  padding: 15px 20px;
+  border-radius: var(--border-radius);
+  margin-top: 20px;
+  animation: slideIn 0.3s ease;
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .title {
+    font-size: 2rem;
+  }
+
+  .container {
+    padding: 15px;
+  }
+}

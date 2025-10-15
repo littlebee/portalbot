@@ -1,73 +1,61 @@
-import { useState, useEffect } from "react";
+/**
+ * Portalbot VideoChat App
+ * Main component for WebRTC video chat application
+ */
 
-import {
-    DEFAULT_HUB_STATE,
-    connectToHub,
-    addHubStateUpdatedListener,
-    removeHubStateUpdatedListener,
-    IHubState,
-} from "./util/hubState";
+import { useWebRTC } from '@/hooks/useWebRTC'
+import StatusBar from '@/components/StatusBar'
+import JoinRoom from '@/components/JoinRoom'
+import VideoSection from '@/components/VideoSection'
+import DebugInfo from '@/components/DebugInfo'
+import styles from './App.module.css'
 
-import { Header } from "./Header";
-import { HubStateDialog } from "./HubStateDialog";
-import { WorthlessCounter } from "./components/WorthlessCounter";
+function App() {
+  const webrtc = useWebRTC()
 
-interface AppProps {
-    hubPort?: number;
-    autoReconnect?: boolean;
+  return (
+    <div className={styles.container}>
+      <header className={styles.header}>
+        <h1 className={styles.title}>Portalbot</h1>
+        <p className={styles.subtitle}>
+          Secure Video Chat with TURN Server Support
+        </p>
+      </header>
+
+      <StatusBar
+        status={webrtc.connectionStatus}
+        statusText={webrtc.statusText}
+        roomName={webrtc.currentRoom}
+      />
+
+      {!webrtc.currentRoom ? (
+        <JoinRoom onJoin={webrtc.joinRoom} />
+      ) : (
+        <>
+          <VideoSection
+            localStream={webrtc.localStream}
+            remoteStream={webrtc.remoteStream}
+            onToggleAudio={webrtc.toggleAudio}
+            onToggleVideo={webrtc.toggleVideo}
+            onLeave={webrtc.leaveRoom}
+            isAudioEnabled={webrtc.isAudioEnabled}
+            isVideoEnabled={webrtc.isVideoEnabled}
+            connectionState={webrtc.connectionState}
+          />
+
+          <DebugInfo
+            connectionState={webrtc.connectionState}
+            iceState={webrtc.iceState}
+            signalingState={webrtc.signalingState}
+          />
+        </>
+      )}
+
+      {webrtc.error && (
+        <div className={styles.errorMessage}>{webrtc.error}</div>
+      )}
+    </div>
+  )
 }
 
-function App({ hubPort, autoReconnect }: AppProps) {
-    const [hubState, setHubState] = useState<IHubState>(DEFAULT_HUB_STATE);
-    const [isHubStateDialogOpen, setIsHubStateDialogOpen] = useState(false);
-
-    useEffect(() => {
-        addHubStateUpdatedListener(handleHubStateUpdated);
-        connectToHub({ port: hubPort, autoReconnect });
-
-        return () => removeHubStateUpdatedListener(handleHubStateUpdated);
-    }, [hubPort, autoReconnect]);
-
-    const handleHubStateUpdated = (newState: IHubState) => {
-        setHubState({ ...newState });
-    };
-
-    return (
-        <div>
-            <Header
-                hubState={hubState}
-                isHubStateDialogOpen={isHubStateDialogOpen}
-                onHubStateDialogOpen={() => setIsHubStateDialogOpen(true)}
-            />
-            <div className="wrap">
-                <div className="left-frame" id="gap">
-                    <div className="sidebar-buttons">Add your menu here</div>
-                </div>
-                <div className="right-frame">
-                    <div className="bar-panel">
-                        <div className="bar-6"></div>
-                        <div className="bar-7"></div>
-                        <div className="bar-8"></div>
-                        <div className="bar-9">
-                            <div className="bar-9-inside"></div>
-                        </div>
-                        <div className="bar-10"></div>
-                    </div>
-                    <div className="corner-bg">
-                        <div className="corner"></div>
-                    </div>
-                    <div className="content">
-                        <WorthlessCounter value={hubState.worthless_counter} />
-                    </div>
-                </div>
-            </div>
-            <HubStateDialog
-                hubState={hubState}
-                isOpen={isHubStateDialogOpen}
-                onClose={() => setIsHubStateDialogOpen(false)}
-            />
-        </div>
-    );
-}
-
-export default App;
+export default App
