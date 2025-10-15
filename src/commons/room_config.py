@@ -58,6 +58,52 @@ class RoomsConfiguration(BaseModel):
             raise ValueError("Room IDs must be unique")
         return v
 
+    def get_room_by_id(self, room_id: str) -> Optional[RoomConfig]:
+        """
+        Get a room configuration by ID.
+
+        Args:
+            room_id: The room ID to find
+
+        Returns:
+            RoomConfig if found, None otherwise
+        """
+        for room in self.rooms:
+            if room.id == room_id:
+                return room
+        return None
+
+    def get_enabled_rooms(self) -> List[RoomConfig]:
+        """
+        Get list of enabled rooms.
+
+        Returns:
+            List of enabled rooms
+        """
+        return [room for room in self.rooms if room.enabled]
+
+    def to_dict(self) -> Dict:
+        """
+        Convert rooms configuration to dictionary for API responses.
+
+        Returns:
+            Dictionary representation suitable for JSON serialization
+        """
+        return {
+            "version": self.version,
+            "rooms": [
+                {
+                    "id": room.id,
+                    "display_name": room.display_name,
+                    "description": room.description,
+                    "image_url": room.image_url,
+                    "max_participants": room.max_participants,
+                    "enabled": room.enabled,
+                }
+                for room in self.rooms
+            ],
+        }
+
 
 def load_rooms_config(config_path: Optional[str] = None) -> RoomsConfiguration:
     """
@@ -106,61 +152,3 @@ def load_rooms_config(config_path: Optional[str] = None) -> RoomsConfiguration:
             room.image_url = config.default_image_url
 
     return config
-
-
-def get_room_by_id(
-    config: RoomsConfiguration, room_id: str
-) -> Optional[RoomConfig]:
-    """
-    Get a room configuration by ID.
-
-    Args:
-        config: The rooms configuration
-        room_id: The room ID to find
-
-    Returns:
-        RoomConfig if found, None otherwise
-    """
-    for room in config.rooms:
-        if room.id == room_id:
-            return room
-    return None
-
-
-def get_enabled_rooms(config: RoomsConfiguration) -> List[RoomConfig]:
-    """
-    Get list of enabled rooms.
-
-    Args:
-        config: The rooms configuration
-
-    Returns:
-        List of enabled rooms
-    """
-    return [room for room in config.rooms if room.enabled]
-
-
-def rooms_to_dict(config: RoomsConfiguration) -> Dict:
-    """
-    Convert rooms configuration to dictionary for API responses.
-
-    Args:
-        config: The rooms configuration
-
-    Returns:
-        Dictionary representation suitable for JSON serialization
-    """
-    return {
-        "version": config.version,
-        "rooms": [
-            {
-                "id": room.id,
-                "display_name": room.display_name,
-                "description": room.description,
-                "image_url": room.image_url,
-                "max_participants": room.max_participants,
-                "enabled": room.enabled,
-            }
-            for room in config.rooms
-        ],
-    }

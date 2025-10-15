@@ -9,9 +9,6 @@ from pathlib import Path
 
 from src.commons.room_config import (
     load_rooms_config,
-    get_room_by_id,
-    get_enabled_rooms,
-    rooms_to_dict,
     RoomConfig,
     RoomsConfiguration,
 )
@@ -162,13 +159,13 @@ def test_get_room_by_id(valid_config_file):
     """Test getting a room by ID"""
     config = load_rooms_config(valid_config_file)
 
-    room = get_room_by_id(config, "test-room-1")
+    room = config.get_room_by_id("test-room-1")
     assert room is not None
     assert room.id == "test-room-1"
     assert room.display_name == "Test Room 1"
 
     # Test non-existent room
-    room = get_room_by_id(config, "nonexistent")
+    room = config.get_room_by_id("nonexistent")
     assert room is None
 
 
@@ -176,17 +173,17 @@ def test_get_enabled_rooms(valid_config_file):
     """Test filtering enabled rooms"""
     config = load_rooms_config(valid_config_file)
 
-    enabled = get_enabled_rooms(config)
+    enabled = config.get_enabled_rooms()
     assert len(enabled) == 1
     assert enabled[0].id == "test-room-1"
     assert enabled[0].enabled is True
 
 
-def test_rooms_to_dict(valid_config_file):
+def test_to_dict(valid_config_file):
     """Test converting rooms configuration to dictionary"""
     config = load_rooms_config(valid_config_file)
 
-    data = rooms_to_dict(config)
+    data = config.to_dict()
 
     assert data["version"] == "1.0.0"
     assert len(data["rooms"]) == 2

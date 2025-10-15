@@ -19,8 +19,6 @@ from dotenv import load_dotenv
 
 from src.commons.room_config import (
     load_rooms_config,
-    get_room_by_id,
-    rooms_to_dict,
     RoomsConfiguration,
 )
 
@@ -65,7 +63,7 @@ async def health_check():
 @app.get("/rooms")
 async def get_rooms():
     """Get list of available rooms"""
-    return rooms_to_dict(rooms_config)
+    return rooms_config.to_dict()
 
 
 async def send_message(websocket: WebSocket, message_type: str, data: dict):
@@ -102,7 +100,7 @@ async def handle_join_room(websocket: WebSocket, client_id: str, data: dict):
         return
 
     # Validate room exists in configuration
-    room_config = get_room_by_id(rooms_config, room_id)
+    room_config = rooms_config.get_room_by_id(room_id)
     if not room_config:
         await send_message(
             websocket,
