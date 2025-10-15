@@ -17,7 +17,23 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 
+from src.commons.room_config import (
+    load_rooms_config,
+    get_room_by_id,
+    rooms_to_dict,
+    RoomsConfiguration,
+)
+
 load_dotenv()
+
+# Load room configuration
+try:
+    rooms_config: RoomsConfiguration = load_rooms_config()
+    print(f"Loaded {len(rooms_config.rooms)} rooms from configuration")
+except Exception as e:
+    print(f"ERROR: Failed to load room configuration: {e}")
+    print("Server will not start without valid room configuration.")
+    raise
 
 # Create FastAPI app
 app = FastAPI(
@@ -44,6 +60,12 @@ async def health_check():
         ),
         "connected_clients": len(connected_clients),
     }
+
+
+@app.get("/rooms")
+async def get_rooms():
+    """Get list of available rooms"""
+    return rooms_to_dict(rooms_config)
 
 
 async def send_message(websocket: WebSocket, message_type: str, data: dict):
@@ -73,41 +95,62 @@ async def broadcast_to_room(
 
 async def handle_join_room(websocket: WebSocket, client_id: str, data: dict):
     """Handle client joining a room"""
-    room_name = data.get("room")
+    room_id = data.get("room")
 
-    if not room_name:
-        await send_message(websocket, "error", {"message": "Room name is required"})
+    if not room_id:
+        await send_message(websocket, "error", {"message": "Room ID is required"})
         return
 
-    # Initialize room if it doesn't exist
-    if room_name not in active_rooms:
-        active_rooms[room_name] = set()
-
-    # Check if room is full (max 2 participants)
-    if len(active_rooms[room_name]) >= 2:
+    # Validate room exists in configuration
+    room_config = get_room_by_id(rooms_config, room_id)
+    if not room_config:
         await send_message(
             websocket,
             "error",
-            {"message": "Room is full. Maximum 2 participants allowed."},
+            {"message": f"Room '{room_id}' does not exist. Please select a valid room."},
+        )
+        return
+
+    # Check if room is enabled
+    if not room_config.enabled:
+        await send_message(
+            websocket,
+            "error",
+            {"message": f"Room '{room_config.display_name}' is currently unavailable."},
+        )
+        return
+
+    # Initialize room if it doesn't exist
+    if room_id not in active_rooms:
+        active_rooms[room_id] = set()
+
+    # Check if room is full using configured max_participants
+    if len(active_rooms[room_id]) >= room_config.max_participants:
+        await send_message(
+            websocket,
+            "error",
+            {
+                "message": f"Room is full. Maximum {room_config.max_participants} participants allowed."
+            },
         )
         return
 
     # Add client to room
-    active_rooms[room_name].add(client_id)
-    client_rooms[client_id] = room_name
+    active_rooms[room_id].add(client_id)
+    client_rooms[client_id] = room_id
 
-    print(f"Client {client_id} joined room: {room_name}")
+    print(f"Client {client_id} joined room: {room_id} ({room_config.display_name})")
 
     # Determine if this client is the initiator
-    is_initiator = len(active_rooms[room_name]) == 1
+    is_initiator = len(active_rooms[room_id]) == 1
 
     # Notify the joining client
     await send_message(
         websocket,
         "joined_room",
         {
-            "room": room_name,
-            "participants": list(active_rooms[room_name]),
+            "room": room_id,
+            "participants": list(active_rooms[room_id]),
             "is_initiator": is_initiator,
         },
     )
@@ -115,9 +158,9 @@ async def handle_join_room(websocket: WebSocket, client_id: str, data: dict):
     # Notify other participants
     if not is_initiator:
         await broadcast_to_room(
-            room_name,
+            room_id,
             "user_joined",
-            {"sid": client_id, "participants": list(active_rooms[room_name])},
+            {"sid": client_id, "participants": list(active_rooms[room_id])},
             exclude_client_id=client_id,
         )
 
