@@ -8,7 +8,7 @@ mkdir -p ~/walky_valky/logs
 mkdir -p ~/walky_valky/pids
 
 # Start with uvicorn for FastAPI with native WebSockets
-uvicorn server:app \
+uvicorn public_server:app \
     --host 0.0.0.0 \
     --port ${PORT:-5080} \
     --log-level warning \
