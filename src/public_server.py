@@ -10,14 +10,22 @@ accessible.
 """
 
 import os
+import sys
 import json
 import uuid
 from typing import Dict, Set, Optional
+from pathlib import Path
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 
-from src.commons.room_config import (
+# Add project root to Python path for imports to work when running directly
+# This allows running: python src/public_server.py
+project_root = Path(__file__).parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
+from src.commons.room_config import (  # noqa: E402
     load_rooms_config,
     RoomsConfiguration,
 )
