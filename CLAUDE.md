@@ -10,7 +10,7 @@ Portalbot is a robotics platform built on the `basic_bot` framework that enables
 - **Framework**: FastAPI with native WebSockets
 - **Main Server**: `src/public_server.py` - WebRTC signaling server
   - Handles WebSocket connections for peer-to-peer signaling
-  - Room-based video chat (max 2 participants per room)
+  - Space-based video chat (max 2 participants per space)
   - Health check endpoint at `/health`
   - WebSocket endpoint at `/ws`
 - **Runtime**: uvicorn (ASGI server)
@@ -198,7 +198,7 @@ const newRoute = createRoute({
 ### Debugging WebSocket Issues
 Check the connection flow:
 1. Client connects → receives `connected` message with `sid`
-2. Client sends `join_room` → receives `joined_room` with participant list
+2. Client sends `join_space` → receives `joined_space` with participant list
 3. Peer exchange: `offer` ↔ `answer` messages
 4. ICE candidates: `ice_candidate` messages for NAT traversal
 

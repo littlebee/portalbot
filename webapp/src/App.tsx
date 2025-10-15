@@ -3,16 +3,15 @@
  * Main component for WebRTC video chat application
  */
 
-import styles from './App.module.css'
-import DebugInfo from '@/components/DebugInfo'
-import JoinSpace from '@/components/JoinSpace'
-import StatusBar from '@/components/StatusBar'
-import VideoSection from '@/components/VideoSection'
-import { useWebRTC } from '@/hooks/useWebRTC'
-
+import styles from "./App.module.css";
+import DebugInfo from "@/components/DebugInfo";
+import JoinSpace from "@/components/JoinSpace";
+import StatusBar from "@/components/StatusBar";
+import VideoSection from "@/components/VideoSection";
+import { useWebRTC } from "@/hooks/useWebRTC";
 
 function App() {
-  const webrtc = useWebRTC()
+  const webrtc = useWebRTC();
 
   return (
     <div className={styles.container}>
@@ -26,11 +25,11 @@ function App() {
       <StatusBar
         status={webrtc.connectionStatus}
         statusText={webrtc.statusText}
-        spaceName={webrtc.currentRoom}
+        spaceName={webrtc.currentSpace}
       />
 
-      {!webrtc.currentRoom ? (
-        <JoinSpace onJoin={webrtc.joinRoom} />
+      {!webrtc.currentSpace ? (
+        <JoinSpace onJoin={webrtc.joinSpace} />
       ) : (
         <>
           <VideoSection
@@ -38,7 +37,7 @@ function App() {
             remoteStream={webrtc.remoteStream}
             onToggleAudio={webrtc.toggleAudio}
             onToggleVideo={webrtc.toggleVideo}
-            onLeave={webrtc.leaveRoom}
+            onLeave={webrtc.leaveSpace}
             isAudioEnabled={webrtc.isAudioEnabled}
             isVideoEnabled={webrtc.isVideoEnabled}
             connectionState={webrtc.connectionState}
@@ -56,7 +55,7 @@ function App() {
         <div className={styles.errorMessage}>{webrtc.error}</div>
       )}
     </div>
-  )
+  );
 }
 
-export default App
+export default App;

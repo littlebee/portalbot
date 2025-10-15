@@ -4,20 +4,20 @@
  * Converted from the vanilla JS WebRTCClient class
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   AnswerData,
   ConnectedData,
   ConnectionStatus,
   ErrorData,
   IceCandidateData,
-  JoinRoomData,
+  JoinSpaceData,
   OfferData,
   UseWebRTCReturn,
   UserJoinedData,
   UserLeftData,
   WebRTCMessage,
-} from '@/types/webrtc'
+} from "@/types/webrtc";
 import {
   INITIAL_RECONNECT_DELAY,
   MAX_RECONNECT_ATTEMPTS,
@@ -25,304 +25,304 @@ import {
   WEBRTC_CONFIG,
   WEBSOCKET_PING_INTERVAL,
   getWebSocketUrl,
-} from '@/services/webrtc-config'
+} from "@/services/webrtc-config";
 
 export function useWebRTC(): UseWebRTCReturn {
   // Connection state
   const [connectionStatus, setConnectionStatus] =
-    useState<ConnectionStatus>('disconnected')
-  const [statusText, setStatusText] = useState('Disconnected')
-  const [clientId, setClientId] = useState<string | null>(null)
-  const [currentRoom, setCurrentRoom] = useState<string | null>(null)
+    useState<ConnectionStatus>("disconnected");
+  const [statusText, setStatusText] = useState("Disconnected");
+  const [clientId, setClientId] = useState<string | null>(null);
+  const [currentSpace, setCurrentSpace] = useState<string | null>(null);
 
   // Media streams
-  const [localStream, setLocalStream] = useState<MediaStream | null>(null)
-  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null)
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
 
   // WebRTC states
   const [connectionState, setConnectionState] =
-    useState<RTCPeerConnectionState>('new')
-  const [iceState, setIceState] = useState<RTCIceConnectionState>('new')
+    useState<RTCPeerConnectionState>("new");
+  const [iceState, setIceState] = useState<RTCIceConnectionState>("new");
   const [signalingState, setSignalingState] =
-    useState<RTCSignalingState>('stable')
+    useState<RTCSignalingState>("stable");
 
   // Media controls
-  const [isAudioEnabled, setIsAudioEnabled] = useState(true)
-  const [isVideoEnabled, setIsVideoEnabled] = useState(true)
+  const [isAudioEnabled, setIsAudioEnabled] = useState(true);
+  const [isVideoEnabled, setIsVideoEnabled] = useState(true);
 
   // Error state
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null);
 
   // Refs for objects that shouldn't trigger re-renders
-  const wsRef = useRef<WebSocket | null>(null)
-  const peerConnectionRef = useRef<RTCPeerConnection | null>(null)
-  const isInitiatorRef = useRef(false)
-  const reconnectAttemptsRef = useRef(0)
-  const reconnectTimerRef = useRef<number | null>(null)
-  const pingIntervalRef = useRef<number | null>(null)
-  const intentionalDisconnectRef = useRef(false)
+  const wsRef = useRef<WebSocket | null>(null);
+  const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
+  const isInitiatorRef = useRef(false);
+  const reconnectAttemptsRef = useRef(0);
+  const reconnectTimerRef = useRef<number | null>(null);
+  const pingIntervalRef = useRef<number | null>(null);
+  const intentionalDisconnectRef = useRef(false);
 
   // Update connection status
   const updateConnectionStatus = useCallback(
     (status: ConnectionStatus, text: string) => {
-      setConnectionStatus(status)
-      setStatusText(text)
+      setConnectionStatus(status);
+      setStatusText(text);
     },
-    []
-  )
+    [],
+  );
 
   // Show error message
   const showError = useCallback((message: string) => {
-    setError(message)
-    setTimeout(() => setError(null), 5000)
-  }, [])
+    setError(message);
+    setTimeout(() => setError(null), 5000);
+  }, []);
 
   // Clear error
   const clearError = useCallback(() => {
-    setError(null)
-  }, [])
+    setError(null);
+  }, []);
 
   // Send message to signaling server
   const sendMessage = useCallback((type: string, data: any = {}) => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type, data }))
+      wsRef.current.send(JSON.stringify({ type, data }));
     } else {
-      console.error('WebSocket not connected, cannot send message')
+      console.error("WebSocket not connected, cannot send message");
     }
-  }, [])
+  }, []);
 
   // Start ping interval
   const startPingInterval = useCallback(() => {
     if (pingIntervalRef.current) {
-      clearInterval(pingIntervalRef.current)
+      clearInterval(pingIntervalRef.current);
     }
     pingIntervalRef.current = window.setInterval(() => {
-      sendMessage('ping')
-    }, WEBSOCKET_PING_INTERVAL)
-  }, [sendMessage])
+      sendMessage("ping");
+    }, WEBSOCKET_PING_INTERVAL);
+  }, [sendMessage]);
 
   // Stop ping interval
   const stopPingInterval = useCallback(() => {
     if (pingIntervalRef.current) {
-      clearInterval(pingIntervalRef.current)
-      pingIntervalRef.current = null
+      clearInterval(pingIntervalRef.current);
+      pingIntervalRef.current = null;
     }
-  }, [])
+  }, []);
 
   // Create peer connection
   const createPeerConnection = useCallback(async () => {
-    const pc = new RTCPeerConnection(WEBRTC_CONFIG)
-    peerConnectionRef.current = pc
+    const pc = new RTCPeerConnection(WEBRTC_CONFIG);
+    peerConnectionRef.current = pc;
 
     // Add local stream tracks
     if (localStream) {
       localStream.getTracks().forEach((track) => {
-        pc.addTrack(track, localStream)
-      })
+        pc.addTrack(track, localStream);
+      });
     }
 
     // Handle remote stream
     pc.ontrack = (event) => {
-      console.log('Received remote track')
-      const stream = new MediaStream()
+      console.log("Received remote track");
+      const stream = new MediaStream();
       event.streams[0].getTracks().forEach((track) => {
-        stream.addTrack(track)
-      })
-      setRemoteStream(stream)
-    }
+        stream.addTrack(track);
+      });
+      setRemoteStream(stream);
+    };
 
     // Handle ICE candidates
     pc.onicecandidate = (event) => {
       if (event.candidate) {
-        console.log('Sending ICE candidate')
-        sendMessage('ice_candidate', {
-          room: currentRoom,
+        console.log("Sending ICE candidate");
+        sendMessage("ice_candidate", {
+          space: currentSpace,
           candidate: event.candidate,
-        })
+        });
       }
-    }
+    };
 
     // Monitor connection state
     pc.onconnectionstatechange = () => {
-      console.log('Connection state:', pc.connectionState)
-      setConnectionState(pc.connectionState)
-    }
+      console.log("Connection state:", pc.connectionState);
+      setConnectionState(pc.connectionState);
+    };
 
     pc.oniceconnectionstatechange = () => {
-      console.log('ICE state:', pc.iceConnectionState)
-      setIceState(pc.iceConnectionState)
-    }
+      console.log("ICE state:", pc.iceConnectionState);
+      setIceState(pc.iceConnectionState);
+    };
 
     pc.onsignalingstatechange = () => {
-      console.log('Signaling state:', pc.signalingState)
-      setSignalingState(pc.signalingState)
-    }
-  }, [localStream, currentRoom, sendMessage])
+      console.log("Signaling state:", pc.signalingState);
+      setSignalingState(pc.signalingState);
+    };
+  }, [localStream, currentSpace, sendMessage]);
 
   // Create offer
   const createOffer = useCallback(async () => {
-    const pc = peerConnectionRef.current
-    if (!pc) return
+    const pc = peerConnectionRef.current;
+    if (!pc) return;
 
     try {
       const offer = await pc.createOffer({
         offerToReceiveAudio: true,
         offerToReceiveVideo: true,
-      })
+      });
 
-      await pc.setLocalDescription(offer)
+      await pc.setLocalDescription(offer);
 
-      console.log('Sending offer')
-      sendMessage('offer', {
-        room: currentRoom,
+      console.log("Sending offer");
+      sendMessage("offer", {
+        space: currentSpace,
         offer: offer,
-      })
+      });
     } catch (error) {
-      console.error('Error creating offer:', error)
-      showError('Failed to create connection offer')
+      console.error("Error creating offer:", error);
+      showError("Failed to create connection offer");
     }
-  }, [currentRoom, sendMessage, showError])
+  }, [currentSpace, sendMessage, showError]);
 
   // Handle offer
   const handleOffer = useCallback(
     async (data: OfferData) => {
       try {
         if (!peerConnectionRef.current) {
-          await createPeerConnection()
+          await createPeerConnection();
         }
 
-        const pc = peerConnectionRef.current!
-        await pc.setRemoteDescription(new RTCSessionDescription(data.offer))
+        const pc = peerConnectionRef.current!;
+        await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
 
-        const answer = await pc.createAnswer()
-        await pc.setLocalDescription(answer)
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
 
-        console.log('Sending answer')
-        sendMessage('answer', {
-          room: currentRoom,
+        console.log("Sending answer");
+        sendMessage("answer", {
+          space: currentSpace,
           answer: answer,
-        })
+        });
       } catch (error) {
-        console.error('Error handling offer:', error)
-        showError('Failed to handle connection offer')
+        console.error("Error handling offer:", error);
+        showError("Failed to handle connection offer");
       }
     },
-    [createPeerConnection, currentRoom, sendMessage, showError]
-  )
+    [createPeerConnection, currentSpace, sendMessage, showError],
+  );
 
   // Handle answer
   const handleAnswer = useCallback(
     async (data: AnswerData) => {
       try {
-        const pc = peerConnectionRef.current
+        const pc = peerConnectionRef.current;
         if (pc) {
-          await pc.setRemoteDescription(new RTCSessionDescription(data.answer))
-          console.log('Remote description set')
+          await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+          console.log("Remote description set");
         }
       } catch (error) {
-        console.error('Error handling answer:', error)
-        showError('Failed to handle connection answer')
+        console.error("Error handling answer:", error);
+        showError("Failed to handle connection answer");
       }
     },
-    [showError]
-  )
+    [showError],
+  );
 
   // Handle ICE candidate
-  const handleIceCandidate = useCallback(
-    async (data: IceCandidateData) => {
-      try {
-        const pc = peerConnectionRef.current
-        if (pc) {
-          await pc.addIceCandidate(new RTCIceCandidate(data.candidate))
-          console.log('ICE candidate added')
-        }
-      } catch (error) {
-        console.error('Error adding ICE candidate:', error)
+  const handleIceCandidate = useCallback(async (data: IceCandidateData) => {
+    try {
+      const pc = peerConnectionRef.current;
+      if (pc) {
+        await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+        console.log("ICE candidate added");
       }
-    },
-    []
-  )
+    } catch (error) {
+      console.error("Error adding ICE candidate:", error);
+    }
+  }, []);
 
   // Handle user joined
   const handleUserJoined = useCallback(
     async (_data: UserJoinedData) => {
-      console.log('Peer joined, starting WebRTC connection')
-      await createPeerConnection()
+      console.log("Peer joined, starting WebRTC connection");
+      await createPeerConnection();
 
       if (isInitiatorRef.current) {
-        await createOffer()
+        await createOffer();
       }
     },
-    [createPeerConnection, createOffer]
-  )
+    [createPeerConnection, createOffer],
+  );
 
   // Handle user left
-  const handleUserLeft = useCallback((_data: UserLeftData) => {
-    console.log('Peer left the room')
-    showError('The other participant left the room')
+  const handleUserLeft = useCallback(
+    (_data: UserLeftData) => {
+      console.log("Peer left the space");
+      showError("The other participant left the space");
 
-    const pc = peerConnectionRef.current
-    if (pc) {
-      pc.close()
-      peerConnectionRef.current = null
-    }
+      const pc = peerConnectionRef.current;
+      if (pc) {
+        pc.close();
+        peerConnectionRef.current = null;
+      }
 
-    setRemoteStream(null)
-    setConnectionState('new')
-    setIceState('new')
-  }, [showError])
+      setRemoteStream(null);
+      setConnectionState("new");
+      setIceState("new");
+    },
+    [showError],
+  );
 
   // Handle WebSocket messages
   const handleMessage = useCallback(
     (message: WebRTCMessage) => {
-      const { type, data } = message
+      const { type, data } = message;
 
-      console.log('Received message:', type, data)
+      console.log("Received message:", type, data);
 
       switch (type) {
-        case 'connected':
-          setClientId((data as ConnectedData).sid)
-          console.log('Client ID:', (data as ConnectedData).sid)
-          break
+        case "connected":
+          setClientId((data as ConnectedData).sid);
+          console.log("Client ID:", (data as ConnectedData).sid);
+          break;
 
-        case 'joined_room': {
-          const joinData = data as JoinRoomData
-          setCurrentRoom(joinData.room)
-          isInitiatorRef.current = joinData.is_initiator
-          break
+        case "joined_space": {
+          const joinData = data as JoinSpaceData;
+          setCurrentSpace(joinData.space);
+          isInitiatorRef.current = joinData.is_initiator;
+          break;
         }
 
-        case 'user_joined':
-          handleUserJoined(data as UserJoinedData)
-          break
+        case "user_joined":
+          handleUserJoined(data as UserJoinedData);
+          break;
 
-        case 'user_left':
-          handleUserLeft(data as UserLeftData)
-          break
+        case "user_left":
+          handleUserLeft(data as UserLeftData);
+          break;
 
-        case 'offer':
-          handleOffer(data as OfferData)
-          break
+        case "offer":
+          handleOffer(data as OfferData);
+          break;
 
-        case 'answer':
-          handleAnswer(data as AnswerData)
-          break
+        case "answer":
+          handleAnswer(data as AnswerData);
+          break;
 
-        case 'ice_candidate':
-          handleIceCandidate(data as IceCandidateData)
-          break
+        case "ice_candidate":
+          handleIceCandidate(data as IceCandidateData);
+          break;
 
-        case 'error':
-          console.error('Server error:', (data as ErrorData).message)
-          showError((data as ErrorData).message)
-          break
+        case "error":
+          console.error("Server error:", (data as ErrorData).message);
+          showError((data as ErrorData).message);
+          break;
 
-        case 'pong':
+        case "pong":
           // Ping response received
-          break
+          break;
 
         default:
-          console.warn('Unknown message type:', type)
+          console.warn("Unknown message type:", type);
       }
     },
     [
@@ -332,72 +332,71 @@ export function useWebRTC(): UseWebRTCReturn {
       handleAnswer,
       handleIceCandidate,
       showError,
-    ]
-  )
+    ],
+  );
 
   // Attempt reconnection
   const attemptReconnect = useCallback(() => {
-    reconnectAttemptsRef.current++
+    reconnectAttemptsRef.current++;
     const delay =
-      INITIAL_RECONNECT_DELAY *
-      Math.pow(2, reconnectAttemptsRef.current - 1)
+      INITIAL_RECONNECT_DELAY * Math.pow(2, reconnectAttemptsRef.current - 1);
 
     console.log(
-      `Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current}/${MAX_RECONNECT_ATTEMPTS})`
-    )
+      `Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current}/${MAX_RECONNECT_ATTEMPTS})`,
+    );
     updateConnectionStatus(
-      'disconnected',
-      `Reconnecting in ${Math.round(delay / 1000)}s...`
-    )
+      "disconnected",
+      `Reconnecting in ${Math.round(delay / 1000)}s...`,
+    );
 
     reconnectTimerRef.current = window.setTimeout(() => {
-      connectToSignalingServer()
-    }, delay)
-  }, [updateConnectionStatus])
+      connectToSignalingServer();
+    }, delay);
+  }, [updateConnectionStatus]);
 
   // Connect to signaling server
   const connectToSignalingServer = useCallback(() => {
-    const wsUrl = getWebSocketUrl()
-    console.log('Connecting to WebSocket:', wsUrl)
+    const wsUrl = getWebSocketUrl();
+    console.log("Connecting to WebSocket:", wsUrl);
 
-    const ws = new WebSocket(wsUrl)
-    wsRef.current = ws
+    const ws = new WebSocket(wsUrl);
+    wsRef.current = ws;
 
     ws.onopen = () => {
-      console.log('WebSocket connected')
-      updateConnectionStatus('connected', 'Connected to server')
-      reconnectAttemptsRef.current = 0
-      startPingInterval()
-    }
+      console.log("WebSocket connected");
+      updateConnectionStatus("connected", "Connected to server");
+      reconnectAttemptsRef.current = 0;
+      startPingInterval();
+    };
 
     ws.onclose = (event) => {
-      console.log('WebSocket closed:', event.code, event.reason)
-      updateConnectionStatus('disconnected', 'Disconnected')
-      stopPingInterval()
+      console.log("WebSocket closed:", event.code, event.reason);
+      updateConnectionStatus("disconnected", "Disconnected");
+      stopPingInterval();
 
       if (
         !intentionalDisconnectRef.current &&
         reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS
       ) {
-        attemptReconnect()
+        attemptReconnect();
       } else if (reconnectAttemptsRef.current >= MAX_RECONNECT_ATTEMPTS) {
-        showError('Failed to reconnect after multiple attempts')
+        showError("Failed to reconnect after multiple attempts");
       }
-    }
+    };
 
     ws.onerror = (error) => {
-      console.error('WebSocket error:', error)
-      showError('WebSocket connection error')
-    }
+      console.error("WebSocket error:", error);
+      showError("WebSocket connection error");
+    };
 
     ws.onmessage = (event) => {
       try {
-        const message = JSON.parse(event.data)
-        handleMessage(message)
+        const message = JSON.parse(event.data);
+        handleMessage(message);
       } catch (error) {
-        console.error('Failed to parse message:', error)
+        console.error("Failed to parse message:", error);
       }
-    }
+    };
   }, [
     updateConnectionStatus,
     startPingInterval,
@@ -405,120 +404,119 @@ export function useWebRTC(): UseWebRTCReturn {
     attemptReconnect,
     showError,
     handleMessage,
-  ])
+  ]);
 
-  // Join room
-  const joinRoom = useCallback(
-    async (roomName: string) => {
-      if (!roomName.trim()) {
-        showError('Please enter a room name')
-        return
+  // Join space
+  const joinSpace = useCallback(
+    async (spaceName: string) => {
+      if (!spaceName.trim()) {
+        showError("Please enter a space name");
+        return;
       }
 
       try {
         // Get local media
-        const stream = await navigator.mediaDevices.getUserMedia(
-          MEDIA_CONSTRAINTS
-        )
-        setLocalStream(stream)
+        const stream =
+          await navigator.mediaDevices.getUserMedia(MEDIA_CONSTRAINTS);
+        setLocalStream(stream);
 
-        // Join the room
-        sendMessage('join_room', { room: roomName })
+        // Join the space
+        sendMessage("join_space", { space: spaceName });
       } catch (error) {
-        console.error('Error joining room:', error)
+        console.error("Error joining space:", error);
         showError(
           `Failed to access camera/microphone: ${
-            error instanceof Error ? error.message : 'Unknown error'
-          }`
-        )
+            error instanceof Error ? error.message : "Unknown error"
+          }`,
+        );
       }
     },
-    [sendMessage, showError]
-  )
+    [sendMessage, showError],
+  );
 
-  // Leave room
-  const leaveRoom = useCallback(() => {
-    if (currentRoom) {
-      sendMessage('leave_room', { room: currentRoom })
+  // Leave space
+  const leaveSpace = useCallback(() => {
+    if (currentSpace) {
+      sendMessage("leave_space", { space: currentSpace });
     }
 
     // Clean up peer connection
-    const pc = peerConnectionRef.current
+    const pc = peerConnectionRef.current;
     if (pc) {
-      pc.close()
-      peerConnectionRef.current = null
+      pc.close();
+      peerConnectionRef.current = null;
     }
 
     // Stop local stream
     if (localStream) {
-      localStream.getTracks().forEach((track) => track.stop())
-      setLocalStream(null)
+      localStream.getTracks().forEach((track) => track.stop());
+      setLocalStream(null);
     }
 
     // Reset state
-    setRemoteStream(null)
-    setCurrentRoom(null)
-    isInitiatorRef.current = false
-    setConnectionState('new')
-    setIceState('new')
-    setSignalingState('stable')
-  }, [currentRoom, localStream, sendMessage])
+    setRemoteStream(null);
+    setCurrentSpace(null);
+    isInitiatorRef.current = false;
+    setConnectionState("new");
+    setIceState("new");
+    setSignalingState("stable");
+  }, [currentSpace, localStream, sendMessage]);
 
   // Toggle audio
   const toggleAudio = useCallback(() => {
     if (localStream) {
-      const audioTrack = localStream.getAudioTracks()[0]
+      const audioTrack = localStream.getAudioTracks()[0];
       if (audioTrack) {
-        audioTrack.enabled = !audioTrack.enabled
-        setIsAudioEnabled(audioTrack.enabled)
+        audioTrack.enabled = !audioTrack.enabled;
+        setIsAudioEnabled(audioTrack.enabled);
       }
     }
-  }, [localStream])
+  }, [localStream]);
 
   // Toggle video
   const toggleVideo = useCallback(() => {
     if (localStream) {
-      const videoTrack = localStream.getVideoTracks()[0]
+      const videoTrack = localStream.getVideoTracks()[0];
       if (videoTrack) {
-        videoTrack.enabled = !videoTrack.enabled
-        setIsVideoEnabled(videoTrack.enabled)
+        videoTrack.enabled = !videoTrack.enabled;
+        setIsVideoEnabled(videoTrack.enabled);
       }
     }
-  }, [localStream])
+  }, [localStream]);
 
   // Connect on mount
   useEffect(() => {
-    connectToSignalingServer()
+    connectToSignalingServer();
 
     // Cleanup on unmount
     return () => {
-      intentionalDisconnectRef.current = true
-      stopPingInterval()
+      intentionalDisconnectRef.current = true;
+      stopPingInterval();
 
       if (reconnectTimerRef.current) {
-        clearTimeout(reconnectTimerRef.current)
+        clearTimeout(reconnectTimerRef.current);
       }
 
       if (wsRef.current) {
-        wsRef.current.close()
+        wsRef.current.close();
       }
 
       if (peerConnectionRef.current) {
-        peerConnectionRef.current.close()
+        peerConnectionRef.current.close();
       }
 
       if (localStream) {
-        localStream.getTracks().forEach((track) => track.stop())
+        localStream.getTracks().forEach((track) => track.stop());
       }
-    }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return {
     // State
     connectionStatus,
     statusText,
     clientId,
-    currentRoom,
+    currentSpace,
     localStream,
     remoteStream,
     connectionState,
@@ -529,10 +527,10 @@ export function useWebRTC(): UseWebRTCReturn {
     error,
 
     // Actions
-    joinRoom,
-    leaveRoom,
+    joinSpace,
+    leaveSpace,
     toggleAudio,
     toggleVideo,
     clearError,
-  }
+  };
 }
