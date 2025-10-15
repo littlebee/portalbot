@@ -3,12 +3,13 @@
  * Main component for WebRTC video chat application
  */
 
-import { useWebRTC } from '@/hooks/useWebRTC'
-import StatusBar from '@/components/StatusBar'
-import JoinRoom from '@/components/JoinRoom'
-import VideoSection from '@/components/VideoSection'
-import DebugInfo from '@/components/DebugInfo'
 import styles from './App.module.css'
+import DebugInfo from '@/components/DebugInfo'
+import JoinSpace from '@/components/JoinSpace'
+import StatusBar from '@/components/StatusBar'
+import VideoSection from '@/components/VideoSection'
+import { useWebRTC } from '@/hooks/useWebRTC'
+
 
 function App() {
   const webrtc = useWebRTC()
@@ -25,11 +26,11 @@ function App() {
       <StatusBar
         status={webrtc.connectionStatus}
         statusText={webrtc.statusText}
-        roomName={webrtc.currentRoom}
+        spaceName={webrtc.currentRoom}
       />
 
       {!webrtc.currentRoom ? (
-        <JoinRoom onJoin={webrtc.joinRoom} />
+        <JoinSpace onJoin={webrtc.joinRoom} />
       ) : (
         <>
           <VideoSection

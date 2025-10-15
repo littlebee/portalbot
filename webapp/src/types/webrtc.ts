@@ -17,12 +17,12 @@ export interface ConnectedData {
 export interface JoinRoomData {
   room: string
   is_initiator: boolean
-  participants: string[]
+  participants: Array<string>
 }
 
 export interface UserJoinedData {
   sid: string
-  participants: string[]
+  participants: Array<string>
 }
 
 export interface UserLeftData {

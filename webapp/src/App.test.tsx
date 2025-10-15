@@ -1,6 +1,6 @@
 /**
  * Integration tests for the App component
- * Tests the main application flow including room joining, video chat, and error handling
+ * Tests the main application flow including space joining, video chat, and error handling
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -9,12 +9,12 @@ import userEvent from '@testing-library/user-event'
 import App from './App'
 import type { UseWebRTCReturn } from '@/types/webrtc'
 import { useWebRTC } from '@/hooks/useWebRTC'
-import * as useRoomsModule from '@/hooks/useRooms'
+import * as useSpacesModule from '@/hooks/useSpaces'
 
 // Mock the useWebRTC hook
 vi.mock('@/hooks/useWebRTC')
-// Mock the useRooms hook
-vi.mock('@/hooks/useRooms')
+// Mock the useSpaces hook
+vi.mock('@/hooks/useSpaces')
 
 describe('App Integration Tests', () => {
   // Default mock values for useWebRTC hook
@@ -38,20 +38,20 @@ describe('App Integration Tests', () => {
     clearError: vi.fn(),
   }
 
-  // Mock rooms data
-  const mockRooms = [
+  // Mock spaces data
+  const mockSpaces = [
     {
       id: 'lobby',
       display_name: 'Lobby',
-      description: 'General meeting room',
+      description: 'General meeting space',
       image_url: '/images/lobby.jpg',
       max_participants: 2,
       enabled: true,
     },
     {
-      id: 'test-room',
-      display_name: 'Test Room',
-      description: 'Test room for testing',
+      id: 'test-space',
+      display_name: 'Test Space',
+      description: 'Test space for testing',
       image_url: '/images/test.jpg',
       max_participants: 2,
       enabled: true,
@@ -65,10 +65,10 @@ describe('App Integration Tests', () => {
     // Setup default mock implementation
     vi.mocked(useWebRTC).mockReturnValue(mockWebRTC)
 
-    // Setup default rooms mock
-    vi.mocked(useRoomsModule.useRooms).mockReturnValue({
-      rooms: mockRooms,
-      enabledRooms: mockRooms,
+    // Setup default spaces mock
+    vi.mocked(useSpacesModule.useSpaces).mockReturnValue({
+      spaces: mockSpaces,
+      enabledSpaces: mockSpaces,
       loading: false,
       error: null,
       refetch: vi.fn(),
@@ -91,16 +91,16 @@ describe('App Integration Tests', () => {
       expect(screen.getByText('Connected to server')).toBeInTheDocument()
     })
 
-    it('should render JoinRoom component when not in a room', () => {
+    it('should render JoinSpace component when not in a space', () => {
       render(<App />)
 
-      // Should show the join room interface with room list
-      expect(screen.getByText('Join a Room')).toBeInTheDocument()
+      // Should show the join space interface with space list
+      expect(screen.getByText('Join a Space')).toBeInTheDocument()
       expect(screen.getByText('Lobby')).toBeInTheDocument()
-      expect(screen.getByText('Test Room')).toBeInTheDocument()
+      expect(screen.getByText('Test Space')).toBeInTheDocument()
     })
 
-    it('should not render VideoSection when not in a room', () => {
+    it('should not render VideoSection when not in a space', () => {
       render(<App />)
 
       // VideoSection should not be visible
@@ -109,8 +109,8 @@ describe('App Integration Tests', () => {
     })
   })
 
-  describe('Joining a Room', () => {
-    it('should call joinRoom when user clicks a room card', async () => {
+  describe('Joining a Space', () => {
+    it('should call joinRoom when user clicks a space card', async () => {
       const user = userEvent.setup()
       const mockJoinRoom = vi.fn()
 
@@ -121,30 +121,30 @@ describe('App Integration Tests', () => {
 
       render(<App />)
 
-      const testRoomCard = screen.getByRole('button', { name: /test room/i })
-      await user.click(testRoomCard)
+      const testSpaceCard = screen.getByRole('button', { name: /test space/i })
+      await user.click(testSpaceCard)
 
-      expect(mockJoinRoom).toHaveBeenCalledWith('test-room')
+      expect(mockJoinRoom).toHaveBeenCalledWith('test-space')
     })
 
-    it('should render VideoSection when in a room', () => {
+    it('should render VideoSection when in a space', () => {
       vi.mocked(useWebRTC).mockReturnValue({
         ...mockWebRTC,
-        currentRoom: 'test-room',
+        currentRoom: 'test-space',
       })
 
       render(<App />)
 
       // VideoSection should be visible
       expect(screen.getByText(/^you$/i)).toBeInTheDocument()
-      // Room list should not be visible
-      expect(screen.queryByText('Join a Room')).not.toBeInTheDocument()
+      // Space list should not be visible
+      expect(screen.queryByText('Join a Space')).not.toBeInTheDocument()
     })
 
-    it('should render DebugInfo when in a room', () => {
+    it('should render DebugInfo when in a space', () => {
       vi.mocked(useWebRTC).mockReturnValue({
         ...mockWebRTC,
-        currentRoom: 'test-room',
+        currentRoom: 'test-space',
         connectionState: 'connected',
         iceState: 'connected',
         signalingState: 'stable',
@@ -280,15 +280,15 @@ describe('App Integration Tests', () => {
       expect(screen.getByText('Connected to server')).toBeInTheDocument()
     })
 
-    it('should display room name in status bar when in room', () => {
+    it('should display space name in status bar when in space', () => {
       vi.mocked(useWebRTC).mockReturnValue({
         ...mockWebRTC,
-        currentRoom: 'my-awesome-room',
+        currentRoom: 'my-awesome-space',
       })
 
       render(<App />)
 
-      expect(screen.getByText(/room:.*my-awesome-room/i)).toBeInTheDocument()
+      expect(screen.getByText(/space:.*my-awesome-space/i)).toBeInTheDocument()
     })
   })
 
@@ -298,7 +298,7 @@ describe('App Integration Tests', () => {
 
       vi.mocked(useWebRTC).mockReturnValue({
         ...mockWebRTC,
-        currentRoom: 'test-room',
+        currentRoom: 'test-space',
         localStream: mockStream,
       })
 
@@ -313,7 +313,7 @@ describe('App Integration Tests', () => {
 
       vi.mocked(useWebRTC).mockReturnValue({
         ...mockWebRTC,
-        currentRoom: 'test-room',
+        currentRoom: 'test-space',
         remoteStream: mockStream,
       })
 
@@ -325,12 +325,12 @@ describe('App Integration Tests', () => {
   })
 
   describe('Complete User Flow', () => {
-    it('should handle complete flow: connect -> join room -> leave room', async () => {
+    it('should handle complete flow: connect -> join space -> leave space', async () => {
       const user = userEvent.setup()
       const mockJoinRoom = vi.fn()
       const mockLeaveRoom = vi.fn()
 
-      // Initial state: connected but not in room
+      // Initial state: connected but not in space
       const mockHook = vi.mocked(useWebRTC)
 
       mockHook.mockReturnValue({
@@ -341,16 +341,16 @@ describe('App Integration Tests', () => {
 
       const { rerender } = render(<App />)
 
-      // Step 1: User joins a room
-      const testRoomCard = screen.getByRole('button', { name: /test room/i })
-      await user.click(testRoomCard)
+      // Step 1: User joins a space
+      const testSpaceCard = screen.getByRole('button', { name: /test space/i })
+      await user.click(testSpaceCard)
 
-      expect(mockJoinRoom).toHaveBeenCalledWith('test-room')
+      expect(mockJoinRoom).toHaveBeenCalledWith('test-space')
 
-      // Step 2: Simulate being in the room
+      // Step 2: Simulate being in the space
       mockHook.mockReturnValue({
         ...mockWebRTC,
-        currentRoom: 'test-room',
+        currentRoom: 'test-space',
         joinRoom: mockJoinRoom,
         leaveRoom: mockLeaveRoom,
       })
@@ -359,16 +359,16 @@ describe('App Integration Tests', () => {
 
       // Verify VideoSection is shown
       expect(screen.getByText(/you/i)).toBeInTheDocument()
-      // Room list should not be visible
-      expect(screen.queryByText('Join a Room')).not.toBeInTheDocument()
+      // Space list should not be visible
+      expect(screen.queryByText('Join a Space')).not.toBeInTheDocument()
 
-      // Step 3: User leaves the room
+      // Step 3: User leaves the space
       const leaveButton = screen.getByRole('button', { name: /leave/i })
       await user.click(leaveButton)
 
       expect(mockLeaveRoom).toHaveBeenCalled()
 
-      // Step 4: Simulate being back to not in room
+      // Step 4: Simulate being back to not in space
       mockHook.mockReturnValue({
         ...mockWebRTC,
         currentRoom: null,
@@ -378,9 +378,9 @@ describe('App Integration Tests', () => {
 
       rerender(<App />)
 
-      // Verify JoinRoom is shown again
+      // Verify JoinSpace is shown again
       await waitFor(() => {
-        expect(screen.getByText('Join a Room')).toBeInTheDocument()
+        expect(screen.getByText('Join a Space')).toBeInTheDocument()
       })
     })
   })

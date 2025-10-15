@@ -1,8 +1,8 @@
 /**
- * Room configuration types matching the backend schema
+ * Space configuration types matching the backend schema
  */
 
-export interface Room {
+export interface Space {
   id: string
   display_name: string
   description: string
@@ -11,7 +11,7 @@ export interface Room {
   enabled: boolean
 }
 
-export interface RoomsResponse {
+export interface SpacesResponse {
   version: string
-  rooms: Array<Room>
+  spaces: Array<Space>
 }

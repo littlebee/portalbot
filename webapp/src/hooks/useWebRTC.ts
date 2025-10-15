@@ -4,26 +4,26 @@
  * Converted from the vanilla JS WebRTCClient class
  */
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type {
-  UseWebRTCReturn,
-  ConnectionStatus,
-  WebRTCMessage,
+  AnswerData,
   ConnectedData,
+  ConnectionStatus,
+  ErrorData,
+  IceCandidateData,
   JoinRoomData,
+  OfferData,
+  UseWebRTCReturn,
   UserJoinedData,
   UserLeftData,
-  OfferData,
-  AnswerData,
-  IceCandidateData,
-  ErrorData,
+  WebRTCMessage,
 } from '@/types/webrtc'
 import {
+  INITIAL_RECONNECT_DELAY,
+  MAX_RECONNECT_ATTEMPTS,
+  MEDIA_CONSTRAINTS,
   WEBRTC_CONFIG,
   WEBSOCKET_PING_INTERVAL,
-  MAX_RECONNECT_ATTEMPTS,
-  INITIAL_RECONNECT_DELAY,
-  MEDIA_CONSTRAINTS,
   getWebSocketUrl,
 } from '@/services/webrtc-config'
 
