@@ -9,23 +9,18 @@ interface JoinRoomProps {
 
 export default function JoinRoom({ onJoin, disabled = false }: JoinRoomProps) {
   const { enabledRooms, loading, error } = useRooms()
-  const [selectedRoomId, setSelectedRoomId] = useState('')
-  const [isJoining, setIsJoining] = useState(false)
+  const [joiningRoomId, setJoiningRoomId] = useState<string | null>(null)
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!selectedRoomId || isJoining || disabled) return
+  const handleRoomClick = async (roomId: string) => {
+    if (joiningRoomId || disabled) return
 
-    setIsJoining(true)
+    setJoiningRoomId(roomId)
     try {
-      await onJoin(selectedRoomId)
+      await onJoin(roomId)
     } finally {
-      setIsJoining(false)
+      setJoiningRoomId(null)
     }
   }
-
-  // Find the selected room details
-  const selectedRoom = enabledRooms.find((room) => room.id === selectedRoomId)
 
   return (
     <div className={styles.section}>
@@ -47,52 +42,43 @@ export default function JoinRoom({ onJoin, disabled = false }: JoinRoomProps) {
           </p>
         ) : (
           <>
-            <form onSubmit={handleSubmit} className={styles.form}>
-              <div className={styles.selectWrapper}>
-                <select
-                  value={selectedRoomId}
-                  onChange={(e) => setSelectedRoomId(e.target.value)}
-                  disabled={isJoining || disabled}
-                  className={styles.select}
-                >
-                  <option value="">Select a room...</option>
-                  {enabledRooms.map((room) => (
-                    <option key={room.id} value={room.id}>
-                      {room.display_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {selectedRoom && (
-                <div className={styles.roomPreview}>
-                  <img
-                    src={selectedRoom.image_url}
-                    alt={selectedRoom.display_name}
-                    className={styles.roomImage}
-                  />
-                  <div className={styles.roomInfo}>
-                    <h3>{selectedRoom.display_name}</h3>
-                    <p>{selectedRoom.description}</p>
-                    <p className={styles.participantInfo}>
-                      Max participants: {selectedRoom.max_participants}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={isJoining || disabled || !selectedRoomId}
-                className={`${styles.btn} ${styles.btnPrimary}`}
-              >
-                {isJoining ? 'Joining...' : 'Join Room'}
-              </button>
-            </form>
+            <ul className={styles.roomList}>
+              {enabledRooms.map((room) => (
+                <li key={room.id} className={styles.roomListItem}>
+                  <button
+                    onClick={() => handleRoomClick(room.id)}
+                    disabled={joiningRoomId !== null || disabled}
+                    className={`${styles.roomCard} ${
+                      joiningRoomId === room.id ? styles.roomCardJoining : ''
+                    }`}
+                  >
+                    <img
+                      src={room.image_url}
+                      alt={room.display_name}
+                      className={styles.roomCardImage}
+                    />
+                    <div className={styles.roomCardContent}>
+                      <h3 className={styles.roomCardTitle}>
+                        {room.display_name}
+                      </h3>
+                      <p className={styles.roomCardDescription}>
+                        {room.description}
+                      </p>
+                      <p className={styles.roomCardParticipants}>
+                        Max {room.max_participants} participants
+                      </p>
+                    </div>
+                    {joiningRoomId === room.id && (
+                      <div className={styles.roomCardSpinner}>Joining...</div>
+                    )}
+                  </button>
+                </li>
+              ))}
+            </ul>
 
             <p className={styles.helpText}>
-              Select a room from the dropdown to connect. Share the room name
-              with your peer to join together.
+              Click on a room to join. Share the room name with your peer to
+              connect together.
             </p>
           </>
         )}

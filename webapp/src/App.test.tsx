@@ -94,12 +94,10 @@ describe('App Integration Tests', () => {
     it('should render JoinRoom component when not in a room', () => {
       render(<App />)
 
-      // Should show the join room interface with dropdown
-      expect(screen.getByRole('combobox')).toBeInTheDocument()
-      expect(screen.getByText('Select a room...')).toBeInTheDocument()
-      expect(
-        screen.getByRole('button', { name: /join room/i })
-      ).toBeInTheDocument()
+      // Should show the join room interface with room list
+      expect(screen.getByText('Join a Room')).toBeInTheDocument()
+      expect(screen.getByText('Lobby')).toBeInTheDocument()
+      expect(screen.getByText('Test Room')).toBeInTheDocument()
     })
 
     it('should not render VideoSection when not in a room', () => {
@@ -112,7 +110,7 @@ describe('App Integration Tests', () => {
   })
 
   describe('Joining a Room', () => {
-    it('should call joinRoom when user selects and submits a room', async () => {
+    it('should call joinRoom when user clicks a room card', async () => {
       const user = userEvent.setup()
       const mockJoinRoom = vi.fn()
 
@@ -123,11 +121,8 @@ describe('App Integration Tests', () => {
 
       render(<App />)
 
-      const select = screen.getByRole('combobox')
-      const button = screen.getByRole('button', { name: /join room/i })
-
-      await user.selectOptions(select, 'test-room')
-      await user.click(button)
+      const testRoomCard = screen.getByRole('button', { name: /test room/i })
+      await user.click(testRoomCard)
 
       expect(mockJoinRoom).toHaveBeenCalledWith('test-room')
     })
@@ -142,8 +137,8 @@ describe('App Integration Tests', () => {
 
       // VideoSection should be visible
       expect(screen.getByText(/^you$/i)).toBeInTheDocument()
-      // Room selector should not be visible
-      expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
+      // Room list should not be visible
+      expect(screen.queryByText('Join a Room')).not.toBeInTheDocument()
     })
 
     it('should render DebugInfo when in a room', () => {
@@ -347,11 +342,8 @@ describe('App Integration Tests', () => {
       const { rerender } = render(<App />)
 
       // Step 1: User joins a room
-      const select = screen.getByRole('combobox')
-      const joinButton = screen.getByRole('button', { name: /join room/i })
-
-      await user.selectOptions(select, 'test-room')
-      await user.click(joinButton)
+      const testRoomCard = screen.getByRole('button', { name: /test room/i })
+      await user.click(testRoomCard)
 
       expect(mockJoinRoom).toHaveBeenCalledWith('test-room')
 
@@ -367,8 +359,8 @@ describe('App Integration Tests', () => {
 
       // Verify VideoSection is shown
       expect(screen.getByText(/you/i)).toBeInTheDocument()
-      // Room selector should not be visible
-      expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
+      // Room list should not be visible
+      expect(screen.queryByText('Join a Room')).not.toBeInTheDocument()
 
       // Step 3: User leaves the room
       const leaveButton = screen.getByRole('button', { name: /leave/i })
@@ -388,7 +380,7 @@ describe('App Integration Tests', () => {
 
       // Verify JoinRoom is shown again
       await waitFor(() => {
-        expect(screen.getByRole('combobox')).toBeInTheDocument()
+        expect(screen.getByText('Join a Room')).toBeInTheDocument()
       })
     })
   })

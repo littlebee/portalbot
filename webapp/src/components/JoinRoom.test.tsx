@@ -86,7 +86,7 @@ describe('JoinRoom', () => {
     ).toBeInTheDocument()
   })
 
-  it('renders room selection dropdown with enabled rooms', () => {
+  it('renders room list with enabled rooms', () => {
     const enabledRooms = mockRooms.filter((room) => room.enabled)
 
     vi.mocked(useRoomsModule.useRooms).mockReturnValue({
@@ -99,16 +99,15 @@ describe('JoinRoom', () => {
 
     render(<JoinRoom onJoin={mockOnJoin} />)
 
-    expect(screen.getByRole('combobox')).toBeInTheDocument()
-    expect(screen.getByText('Select a room...')).toBeInTheDocument()
     expect(screen.getByText('Lobby')).toBeInTheDocument()
+    expect(screen.getByText('General meeting room')).toBeInTheDocument()
     expect(screen.getByText('Robot 1')).toBeInTheDocument()
-    // Robot 2 should not be in the dropdown (disabled)
+    expect(screen.getByText('Connect to Robot 1')).toBeInTheDocument()
+    // Robot 2 should not be in the list (disabled)
     expect(screen.queryByText('Robot 2')).not.toBeInTheDocument()
   })
 
-  it('shows room preview when a room is selected', async () => {
-    const user = userEvent.setup()
+  it('displays room images and details in list', async () => {
     const enabledRooms = mockRooms.filter((room) => room.enabled)
 
     vi.mocked(useRoomsModule.useRooms).mockReturnValue({
@@ -121,17 +120,14 @@ describe('JoinRoom', () => {
 
     render(<JoinRoom onJoin={mockOnJoin} />)
 
-    const select = screen.getByRole('combobox')
-    await user.selectOptions(select, 'lobby')
-
     await waitFor(() => {
       expect(screen.getByAltText('Lobby')).toBeInTheDocument()
-      expect(screen.getByText('General meeting room')).toBeInTheDocument()
-      expect(screen.getByText(/max participants: 2/i)).toBeInTheDocument()
+      expect(screen.getByAltText('Robot 1')).toBeInTheDocument()
+      expect(screen.getAllByText(/max 2 participants/i)).toHaveLength(2)
     })
   })
 
-  it('calls onJoin with selected room ID when form is submitted', async () => {
+  it('calls onJoin when a room card is clicked', async () => {
     const user = userEvent.setup()
     const enabledRooms = mockRooms.filter((room) => room.enabled)
 
@@ -147,18 +143,15 @@ describe('JoinRoom', () => {
 
     render(<JoinRoom onJoin={mockOnJoin} />)
 
-    const select = screen.getByRole('combobox')
-    await user.selectOptions(select, 'lobby')
-
-    const joinButton = screen.getByRole('button', { name: /join room/i })
-    await user.click(joinButton)
+    const lobbyCard = screen.getByRole('button', { name: /lobby/i })
+    await user.click(lobbyCard)
 
     await waitFor(() => {
       expect(mockOnJoin).toHaveBeenCalledWith('lobby')
     })
   })
 
-  it('disables join button when no room is selected', () => {
+  it('displays room cards as enabled buttons', () => {
     const enabledRooms = mockRooms.filter((room) => room.enabled)
 
     vi.mocked(useRoomsModule.useRooms).mockReturnValue({
@@ -171,11 +164,14 @@ describe('JoinRoom', () => {
 
     render(<JoinRoom onJoin={mockOnJoin} />)
 
-    const joinButton = screen.getByRole('button', { name: /join room/i })
-    expect(joinButton).toBeDisabled()
+    const lobbyCard = screen.getByRole('button', { name: /lobby/i })
+    const robot1Card = screen.getByRole('button', { name: /robot 1/i })
+
+    expect(lobbyCard).not.toBeDisabled()
+    expect(robot1Card).not.toBeDisabled()
   })
 
-  it('disables form when disabled prop is true', () => {
+  it('disables room cards when disabled prop is true', () => {
     const enabledRooms = mockRooms.filter((room) => room.enabled)
 
     vi.mocked(useRoomsModule.useRooms).mockReturnValue({
@@ -188,8 +184,11 @@ describe('JoinRoom', () => {
 
     render(<JoinRoom onJoin={mockOnJoin} disabled={true} />)
 
-    expect(screen.getByRole('combobox')).toBeDisabled()
-    expect(screen.getByRole('button', { name: /join room/i })).toBeDisabled()
+    const lobbyCard = screen.getByRole('button', { name: /lobby/i })
+    const robot1Card = screen.getByRole('button', { name: /robot 1/i })
+
+    expect(lobbyCard).toBeDisabled()
+    expect(robot1Card).toBeDisabled()
   })
 
   it('shows joining state while onJoin is in progress', async () => {
@@ -211,13 +210,10 @@ describe('JoinRoom', () => {
 
     render(<JoinRoom onJoin={mockOnJoin} />)
 
-    const select = screen.getByRole('combobox')
-    await user.selectOptions(select, 'lobby')
-
-    const joinButton = screen.getByRole('button', { name: /join room/i })
-    await user.click(joinButton)
+    const lobbyCard = screen.getByRole('button', { name: /lobby/i })
+    await user.click(lobbyCard)
 
     expect(screen.getByText(/joining\.\.\./i)).toBeInTheDocument()
-    expect(joinButton).toBeDisabled()
+    expect(lobbyCard).toBeDisabled()
   })
 })
