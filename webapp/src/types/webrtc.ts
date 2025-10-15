@@ -3,7 +3,7 @@
  * Types for WebRTC signaling messages and application state
  */
 
-export type ConnectionStatus = 'connected' | 'disconnected'
+export type ConnectionStatus = 'connected' | 'disconnected' | 'connecting'
 
 export interface WebRTCMessage {
   type: string
