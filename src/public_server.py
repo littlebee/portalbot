@@ -296,7 +296,7 @@ async def websocket_endpoint(websocket: WebSocket):
             del connected_clients[websocket]
 
 
-# Mount static files and templates
+# Mount static files and templates from the vite build directory
 # Important: Because we are serving static files from the root, this
 # must be the last route defined or it will override other routes.
 app.mount("/", StaticFiles(directory="webapp/dist/", html=True))
