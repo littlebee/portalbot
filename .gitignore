@@ -1,6 +1,8 @@
 # our stuff
 logs/
 pids/
+robot_secret.key
+*.key
 
 node_modules/
 

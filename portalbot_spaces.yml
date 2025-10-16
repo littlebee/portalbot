@@ -15,6 +15,7 @@ spaces:
     # image_url not specified - will use default_image_url
     max_participants: 2
     enabled: true
+    robot_secret_key: "edQIEINxKNebGQvtJ1ol9Jk-8_JioSLAJSW2Qa4QF2c"
 
   - id: "robot-2"
     display_name: "Robot 2"

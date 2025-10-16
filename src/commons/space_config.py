@@ -25,6 +25,9 @@ class SpaceConfig(BaseModel):
         2, ge=2, le=10, description="Maximum number of participants (2-10)"
     )
     enabled: bool = Field(True, description="Whether the space is currently available")
+    robot_secret_key: Optional[str] = Field(
+        None, description="Secret key for robot authentication (optional)"
+    )
 
     @field_validator("id")
     @classmethod
