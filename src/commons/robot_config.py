@@ -16,7 +16,8 @@ from pydantic import BaseModel, Field, field_validator
 class RobotConfig(BaseModel):
     """Configuration for a portalbot robot instance"""
 
-    robot_name: str = Field(..., description="Unique robot identifier/name")
+    robot_id: str = Field(..., description="Unique robot ID (matches robot_secrets/<robot-id>.key)")
+    robot_name: str = Field(..., description="Human-readable robot name (displayed to users)")
     space_id: str = Field(..., description="Space ID this robot belongs to")
     secret_key_file: str = Field(
         ..., description="Path to file containing secret key for authentication"
@@ -28,6 +29,19 @@ class RobotConfig(BaseModel):
     display_size: int = Field(
         1080, ge=480, le=2160, description="Size of square display (1080x1080)"
     )
+
+    @field_validator("robot_id")
+    @classmethod
+    def validate_robot_id(cls, v: str) -> str:
+        """Validate robot ID format"""
+        if not v or not v.strip():
+            raise ValueError("Robot ID cannot be empty")
+        # Allow alphanumeric, hyphens, and underscores
+        if not all(c.isalnum() or c in "-_" for c in v):
+            raise ValueError(
+                "Robot ID must contain only alphanumeric characters, hyphens, and underscores"
+            )
+        return v.strip()
 
     @field_validator("robot_name")
     @classmethod

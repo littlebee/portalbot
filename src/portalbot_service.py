@@ -76,7 +76,7 @@ class PortalbotService:
         try:
             self.config: RobotConfig = load_robot_config()
             logger.info(
-                f"Loaded robot config: {self.config.robot_name} -> {self.config.space_id}"
+                f"Loaded robot config: {self.config.robot_id} ({self.config.robot_name}) -> {self.config.space_id}"
             )
         except Exception as e:
             logger.error(f"Failed to load robot configuration: {e}")
@@ -345,6 +345,7 @@ class PortalbotService:
         await self.send_to_public_server(
             "robot_identify",
             {
+                "robot_id": self.config.robot_id,
                 "robot_name": self.config.robot_name,
                 "space": self.config.space_id,
                 "secret_key": self.secret_key,

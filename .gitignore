@@ -2,7 +2,8 @@
 logs/
 pids/
 robot_secret.key
-*.key
+robot_secrets/*.key
+!robot_secrets/README.md
 
 node_modules/
 

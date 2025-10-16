@@ -29,6 +29,10 @@ from src.commons.space_config import (  # noqa: E402
     load_spaces_config,
     SpacesConfiguration,
 )
+from src.commons.robot_secrets import (  # noqa: E402
+    init_robot_secrets,
+    RobotSecretsManager,
+)
 
 load_dotenv()
 
@@ -39,6 +43,15 @@ try:
 except Exception as e:
     print(f"ERROR: Failed to load space configuration: {e}")
     print("Server will not start without valid space configuration.")
+    raise
+
+# Initialize robot secrets manager
+try:
+    robot_secrets_manager: RobotSecretsManager = init_robot_secrets()
+    print(f"Loaded {len(robot_secrets_manager.get_all_robot_ids())} robot secrets")
+except Exception as e:
+    print(f"ERROR: Failed to load robot secrets: {e}")
+    print("Server will not start without valid robot secrets.")
     raise
 
 # Create FastAPI app
@@ -260,13 +273,14 @@ async def handle_ping(websocket: WebSocket, client_id: str, data: dict):
 
 async def handle_robot_identify(websocket: WebSocket, client_id: str, data: dict):
     """Handle robot identification and authentication"""
+    robot_id = data.get("robot_id")
     robot_name = data.get("robot_name")
     space_id = data.get("space")
     secret_key = data.get("secret_key")
 
-    if not robot_name or not space_id or not secret_key:
+    if not robot_id or not robot_name or not space_id or not secret_key:
         await send_message(websocket, "error",
-            {"message": "Robot identification requires robot_name, space, and secret_key"})
+            {"message": "Robot identification requires robot_id, robot_name, space, and secret_key"})
         return
 
     # Validate space exists
@@ -276,15 +290,23 @@ async def handle_robot_identify(websocket: WebSocket, client_id: str, data: dict
             {"message": f"Space '{space_id}' does not exist"})
         return
 
-    # Validate secret key
-    if space_config.robot_secret_key != secret_key:
+    # Check if robot_id is in space's allowed list
+    if not robot_secrets_manager.robot_has_access_to_space(robot_id, space_config.robot_ids):
         await send_message(websocket, "error",
-            {"message": "Invalid robot secret key"})
-        print(f"Robot authentication failed for {robot_name}: invalid secret key")
+            {"message": f"Robot '{robot_id}' is not authorized to access space '{space_id}'"})
+        print(f"Robot authentication failed for {robot_id}: not in space's allowed list")
+        return
+
+    # Validate robot credentials
+    if not robot_secrets_manager.validate_robot(robot_id, secret_key):
+        await send_message(websocket, "error",
+            {"message": "Invalid robot credentials"})
+        print(f"Robot authentication failed for {robot_id}: invalid secret key")
         return
 
     # Register as robot
     robot_clients[client_id] = {
+        "robot_id": robot_id,
         "robot_name": robot_name,
         "space": space_id,
         "controlled_by": None
@@ -298,13 +320,14 @@ async def handle_robot_identify(websocket: WebSocket, client_id: str, data: dict
     active_spaces[space_id].add(client_id)
     client_spaces[client_id] = space_id
 
-    print(f"Robot '{robot_name}' authenticated and joined space: {space_id}")
+    print(f"Robot '{robot_name}' (ID: {robot_id}) authenticated and joined space: {space_id}")
 
     # Send success response
     await send_message(websocket, "joined_space", {
         "space": space_id,
         "participants": list(active_spaces[space_id]),
         "is_robot": True,
+        "robot_id": robot_id,
         "robot_name": robot_name
     })
 
@@ -312,7 +335,7 @@ async def handle_robot_identify(websocket: WebSocket, client_id: str, data: dict
     await broadcast_to_space(
         space_id,
         "robot_joined",
-        {"robot_name": robot_name, "robot_id": client_id},
+        {"robot_id": robot_id, "robot_name": robot_name, "client_id": client_id},
         exclude_client_id=client_id
     )
 

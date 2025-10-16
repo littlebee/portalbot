@@ -3,6 +3,10 @@
 # This file configures a portalbot robot instance, telling it which space
 # to connect to and how to authenticate with the public server.
 
+# Robot ID - unique identifier for this robot
+# Must match a .key file in robot_secrets/ directory (e.g., robot_secrets/robot-1.key)
+robot_id: "robot-1"
+
 # Unique name for this robot (displayed to users)
 robot_name: "Robot 1"
 
@@ -12,7 +16,7 @@ space_id: "robot-1"
 # Path to file containing the secret key for authentication
 # This file should contain a single line with a secure random string
 # Generate with: python -c "import secrets; print(secrets.token_urlsafe(32))"
-secret_key_file: "./robot_secret.key"
+secret_key_file: "./robot_secrets/robot-1.key"
 
 # WebSocket URL of the public server
 # Development: ws://localhost:5080/ws

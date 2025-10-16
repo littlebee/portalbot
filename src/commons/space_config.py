@@ -25,8 +25,9 @@ class SpaceConfig(BaseModel):
         2, ge=2, le=10, description="Maximum number of participants (2-10)"
     )
     enabled: bool = Field(True, description="Whether the space is currently available")
-    robot_secret_key: Optional[str] = Field(
-        None, description="Secret key for robot authentication (optional)"
+    robot_ids: List[str] = Field(
+        default_factory=list,
+        description="List of robot IDs allowed to connect to this space"
     )
 
     @field_validator("id")
@@ -41,6 +42,20 @@ class SpaceConfig(BaseModel):
                 "Space ID must contain only alphanumeric characters, hyphens, and underscores"
             )
         return v.strip()
+
+    @field_validator("robot_ids")
+    @classmethod
+    def validate_robot_ids(cls, v: List[str]) -> List[str]:
+        """Validate robot IDs format"""
+        for robot_id in v:
+            if not robot_id or not robot_id.strip():
+                raise ValueError("Robot ID cannot be empty")
+            # Allow alphanumeric, hyphens, and underscores
+            if not all(c.isalnum() or c in "-_" for c in robot_id):
+                raise ValueError(
+                    f"Robot ID '{robot_id}' must contain only alphanumeric characters, hyphens, and underscores"
+                )
+        return [rid.strip() for rid in v]
 
 
 class SpacesConfiguration(BaseModel):
