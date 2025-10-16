@@ -1,17 +1,19 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import JoinRoom from './JoinRoom'
-import * as useRoomsModule from '@/hooks/useRooms'
 
-// Mock the useRooms hook
-vi.mock('@/hooks/useRooms')
+import JoinSpace from './JoinSpace'
+import * as useSpacesModule from '@/hooks/useSpaces'
 
-const mockRooms = [
+
+// Mock the useSpaces hook
+vi.mock('@/hooks/useSpaces')
+
+const mockSpaces = [
   {
     id: 'lobby',
     display_name: 'Lobby',
-    description: 'General meeting room',
+    description: 'General meeting space',
     image_url: '/images/lobby.jpg',
     max_participants: 2,
     enabled: true,
@@ -34,91 +36,91 @@ const mockRooms = [
   },
 ]
 
-describe('JoinRoom', () => {
+describe('JoinSpace', () => {
   const mockOnJoin = vi.fn()
 
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
-  it('shows loading state while fetching rooms', () => {
-    vi.mocked(useRoomsModule.useRooms).mockReturnValue({
-      rooms: [],
-      enabledRooms: [],
+  it('shows loading state while fetching spaces', () => {
+    vi.mocked(useSpacesModule.useSpaces).mockReturnValue({
+      spaces: [],
+      enabledSpaces: [],
       loading: true,
       error: null,
       refetch: vi.fn(),
     })
 
-    render(<JoinRoom onJoin={mockOnJoin} />)
+    render(<JoinSpace onJoin={mockOnJoin} />)
 
-    expect(screen.getByText(/loading available rooms/i)).toBeInTheDocument()
+    expect(screen.getByText(/loading available spaces/i)).toBeInTheDocument()
   })
 
-  it('shows error message when rooms fail to load', () => {
-    vi.mocked(useRoomsModule.useRooms).mockReturnValue({
-      rooms: [],
-      enabledRooms: [],
+  it('shows error message when spaces fail to load', () => {
+    vi.mocked(useSpacesModule.useSpaces).mockReturnValue({
+      spaces: [],
+      enabledSpaces: [],
       loading: false,
-      error: 'Failed to fetch rooms',
+      error: 'Failed to fetch spaces',
       refetch: vi.fn(),
     })
 
-    render(<JoinRoom onJoin={mockOnJoin} />)
+    render(<JoinSpace onJoin={mockOnJoin} />)
 
-    expect(screen.getByText(/error loading rooms/i)).toBeInTheDocument()
-    expect(screen.getByText(/failed to fetch rooms/i)).toBeInTheDocument()
+    expect(screen.getByText(/error loading spaces/i)).toBeInTheDocument()
+    expect(screen.getByText(/failed to fetch spaces/i)).toBeInTheDocument()
   })
 
-  it('shows message when no rooms are available', () => {
-    vi.mocked(useRoomsModule.useRooms).mockReturnValue({
-      rooms: [],
-      enabledRooms: [],
+  it('shows message when no spaces are available', () => {
+    vi.mocked(useSpacesModule.useSpaces).mockReturnValue({
+      spaces: [],
+      enabledSpaces: [],
       loading: false,
       error: null,
       refetch: vi.fn(),
     })
 
-    render(<JoinRoom onJoin={mockOnJoin} />)
+    render(<JoinSpace onJoin={mockOnJoin} />)
 
     expect(
-      screen.getByText(/no rooms are currently available/i)
+      screen.getByText(/no spaces are currently available/i)
     ).toBeInTheDocument()
   })
 
-  it('renders room list with enabled rooms', () => {
-    const enabledRooms = mockRooms.filter((room) => room.enabled)
+  it('renders space list with enabled spaces', () => {
+    const enabledSpaces = mockSpaces.filter((space) => space.enabled)
 
-    vi.mocked(useRoomsModule.useRooms).mockReturnValue({
-      rooms: mockRooms,
-      enabledRooms,
+    vi.mocked(useSpacesModule.useSpaces).mockReturnValue({
+      spaces: mockSpaces,
+      enabledSpaces,
       loading: false,
       error: null,
       refetch: vi.fn(),
     })
 
-    render(<JoinRoom onJoin={mockOnJoin} />)
+    render(<JoinSpace onJoin={mockOnJoin} />)
 
     expect(screen.getByText('Lobby')).toBeInTheDocument()
-    expect(screen.getByText('General meeting room')).toBeInTheDocument()
+    expect(screen.getByText('General meeting space')).toBeInTheDocument()
     expect(screen.getByText('Robot 1')).toBeInTheDocument()
     expect(screen.getByText('Connect to Robot 1')).toBeInTheDocument()
     // Robot 2 should not be in the list (disabled)
     expect(screen.queryByText('Robot 2')).not.toBeInTheDocument()
   })
 
-  it('displays room images and details in list', async () => {
-    const enabledRooms = mockRooms.filter((room) => room.enabled)
+  it('displays space images and details in list', async () => {
+    const enabledSpaces = mockSpaces.filter((space) => space.enabled)
 
-    vi.mocked(useRoomsModule.useRooms).mockReturnValue({
-      rooms: mockRooms,
-      enabledRooms,
+    vi.mocked(useSpacesModule.useSpaces).mockReturnValue({
+      spaces: mockSpaces,
+      enabledSpaces,
       loading: false,
       error: null,
       refetch: vi.fn(),
     })
 
-    render(<JoinRoom onJoin={mockOnJoin} />)
+    render(<JoinSpace onJoin={mockOnJoin} />)
 
     await waitFor(() => {
       expect(screen.getByAltText('Lobby')).toBeInTheDocument()
@@ -127,21 +129,21 @@ describe('JoinRoom', () => {
     })
   })
 
-  it('calls onJoin when a room card is clicked', async () => {
+  it('calls onJoin when a space card is clicked', async () => {
     const user = userEvent.setup()
-    const enabledRooms = mockRooms.filter((room) => room.enabled)
+    const enabledSpaces = mockSpaces.filter((space) => space.enabled)
 
     mockOnJoin.mockResolvedValue(undefined)
 
-    vi.mocked(useRoomsModule.useRooms).mockReturnValue({
-      rooms: mockRooms,
-      enabledRooms,
+    vi.mocked(useSpacesModule.useSpaces).mockReturnValue({
+      spaces: mockSpaces,
+      enabledSpaces,
       loading: false,
       error: null,
       refetch: vi.fn(),
     })
 
-    render(<JoinRoom onJoin={mockOnJoin} />)
+    render(<JoinSpace onJoin={mockOnJoin} />)
 
     const lobbyCard = screen.getByRole('button', { name: /lobby/i })
     await user.click(lobbyCard)
@@ -151,18 +153,18 @@ describe('JoinRoom', () => {
     })
   })
 
-  it('displays room cards as enabled buttons', () => {
-    const enabledRooms = mockRooms.filter((room) => room.enabled)
+  it('displays space cards as enabled buttons', () => {
+    const enabledSpaces = mockSpaces.filter((space) => space.enabled)
 
-    vi.mocked(useRoomsModule.useRooms).mockReturnValue({
-      rooms: mockRooms,
-      enabledRooms,
+    vi.mocked(useSpacesModule.useSpaces).mockReturnValue({
+      spaces: mockSpaces,
+      enabledSpaces,
       loading: false,
       error: null,
       refetch: vi.fn(),
     })
 
-    render(<JoinRoom onJoin={mockOnJoin} />)
+    render(<JoinSpace onJoin={mockOnJoin} />)
 
     const lobbyCard = screen.getByRole('button', { name: /lobby/i })
     const robot1Card = screen.getByRole('button', { name: /robot 1/i })
@@ -171,18 +173,18 @@ describe('JoinRoom', () => {
     expect(robot1Card).not.toBeDisabled()
   })
 
-  it('disables room cards when disabled prop is true', () => {
-    const enabledRooms = mockRooms.filter((room) => room.enabled)
+  it('disables space cards when disabled prop is true', () => {
+    const enabledSpaces = mockSpaces.filter((space) => space.enabled)
 
-    vi.mocked(useRoomsModule.useRooms).mockReturnValue({
-      rooms: mockRooms,
-      enabledRooms,
+    vi.mocked(useSpacesModule.useSpaces).mockReturnValue({
+      spaces: mockSpaces,
+      enabledSpaces,
       loading: false,
       error: null,
       refetch: vi.fn(),
     })
 
-    render(<JoinRoom onJoin={mockOnJoin} disabled={true} />)
+    render(<JoinSpace onJoin={mockOnJoin} disabled={true} />)
 
     const lobbyCard = screen.getByRole('button', { name: /lobby/i })
     const robot1Card = screen.getByRole('button', { name: /robot 1/i })
@@ -193,22 +195,22 @@ describe('JoinRoom', () => {
 
   it('shows joining state while onJoin is in progress', async () => {
     const user = userEvent.setup()
-    const enabledRooms = mockRooms.filter((room) => room.enabled)
+    const enabledSpaces = mockSpaces.filter((space) => space.enabled)
 
     // Mock onJoin to delay resolution
     mockOnJoin.mockImplementation(
       () => new Promise((resolve) => setTimeout(resolve, 100))
     )
 
-    vi.mocked(useRoomsModule.useRooms).mockReturnValue({
-      rooms: mockRooms,
-      enabledRooms,
+    vi.mocked(useSpacesModule.useSpaces).mockReturnValue({
+      spaces: mockSpaces,
+      enabledSpaces,
       loading: false,
       error: null,
       refetch: vi.fn(),
     })
 
-    render(<JoinRoom onJoin={mockOnJoin} />)
+    render(<JoinSpace onJoin={mockOnJoin} />)
 
     const lobbyCard = screen.getByRole('button', { name: /lobby/i })
     await user.click(lobbyCard)

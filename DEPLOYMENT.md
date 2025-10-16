@@ -298,8 +298,8 @@ sudo journalctl -u portalbot -f
    - ✅ No certificate warnings
 
 3. **Test WebRTC:**
-   - Click "Join Room"
-   - Enter a room name (e.g., "test")
+   - Click "Join Space"
+   - Enter a space name (e.g., "test")
    - **Browser should prompt for camera/microphone access** ← This is the key test!
    - Allow access
    - You should see your local video
@@ -307,7 +307,7 @@ sudo journalctl -u portalbot -f
 4. **Test Peer Connection:**
    - Open another browser window/tab (or different device)
    - Go to `https://portalbot.net`
-   - Enter the **same room name**
+   - Enter the **same space name**
    - Both peers should connect and see each other's video
 
 ### Verify SSL Certificate

@@ -66,7 +66,7 @@
   margin-bottom: 5px;
 }
 
-.roomList {
+.spaceList {
   list-style: none;
   padding: 0;
   margin: 0 0 20px 0;
@@ -75,12 +75,12 @@
   gap: 16px;
 }
 
-.roomListItem {
+.spaceListItem {
   margin: 0;
   padding: 0;
 }
 
-.roomCard {
+.spaceCard {
   width: 100%;
   display: flex;
   align-items: center;
@@ -95,27 +95,27 @@
   position: relative;
 }
 
-.roomCard:hover:not(:disabled) {
+.spaceCard:hover:not(:disabled) {
   border-color: var(--primary-color);
   transform: translateY(-2px);
   box-shadow: var(--shadow-lg);
 }
 
-.roomCard:active:not(:disabled) {
+.spaceCard:active:not(:disabled) {
   transform: translateY(0);
 }
 
-.roomCard:disabled {
+.spaceCard:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
 
-.roomCardJoining {
+.spaceCardJoining {
   border-color: var(--primary-color);
   background: rgba(79, 70, 229, 0.05);
 }
 
-.roomCardImage {
+.spaceCardImage {
   width: 120px;
   height: 120px;
   object-fit: cover;
@@ -124,32 +124,32 @@
   flex-shrink: 0;
 }
 
-.roomCardContent {
+.spaceCardContent {
   flex: 1;
   min-width: 0;
 }
 
-.roomCardTitle {
+.spaceCardTitle {
   margin: 0 0 10px 0;
   font-size: 1.25rem;
   color: var(--text-color);
   font-weight: 600;
 }
 
-.roomCardDescription {
+.spaceCardDescription {
   margin: 0 0 8px 0;
   color: var(--text-secondary);
   line-height: 1.5;
 }
 
-.roomCardParticipants {
+.spaceCardParticipants {
   margin: 0;
   font-size: 0.875rem;
   font-weight: 600;
   color: var(--primary-color);
 }
 
-.roomCardSpinner {
+.spaceCardSpinner {
   position: absolute;
   top: 50%;
   right: 20px;
@@ -163,18 +163,18 @@
 }
 
 @media (max-width: 640px) {
-  .roomCard {
+  .spaceCard {
     flex-direction: column;
     text-align: center;
   }
 
-  .roomCardImage {
+  .spaceCardImage {
     width: 100%;
     height: auto;
     max-width: 200px;
   }
 
-  .roomCardSpinner {
+  .spaceCardSpinner {
     position: static;
     transform: none;
     margin-top: 10px;

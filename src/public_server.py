@@ -25,20 +25,20 @@ project_root = Path(__file__).parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-from src.commons.room_config import (  # noqa: E402
-    load_rooms_config,
-    RoomsConfiguration,
+from src.commons.space_config import (  # noqa: E402
+    load_spaces_config,
+    SpacesConfiguration,
 )
 
 load_dotenv()
 
-# Load room configuration
+# Load space configuration
 try:
-    rooms_config: RoomsConfiguration = load_rooms_config()
-    print(f"Loaded {len(rooms_config.rooms)} rooms from configuration")
+    spaces_config: SpacesConfiguration = load_spaces_config()
+    print(f"Loaded {len(spaces_config.spaces)} spaces from configuration")
 except Exception as e:
-    print(f"ERROR: Failed to load room configuration: {e}")
-    print("Server will not start without valid room configuration.")
+    print(f"ERROR: Failed to load space configuration: {e}")
+    print("Server will not start without valid space configuration.")
     raise
 
 # Create FastAPI app
@@ -48,10 +48,10 @@ app = FastAPI(
     version="3.0.0",
 )
 
-# Connection and room tracking
+# Connection and space tracking
 connected_clients: Dict[WebSocket, str] = {}  # WebSocket -> client_id
-client_rooms: Dict[str, Optional[str]] = {}  # client_id -> room_name
-active_rooms: Dict[str, Set[str]] = {}  # room_name -> Set[client_id]
+client_spaces: Dict[str, Optional[str]] = {}  # client_id -> space_name
+active_spaces: Dict[str, Set[str]] = {}  # space_name -> Set[client_id]
 client_websockets: Dict[str, WebSocket] = {}  # client_id -> WebSocket
 
 
@@ -60,18 +60,18 @@ async def health_check():
     """Health check endpoint for monitoring"""
     return {
         "status": "healthy",
-        "active_rooms": len(active_rooms),
+        "active_spaces": len(active_spaces),
         "total_participants": sum(
-            len(participants) for participants in active_rooms.values()
+            len(participants) for participants in active_spaces.values()
         ),
         "connected_clients": len(connected_clients),
     }
 
 
-@app.get("/rooms")
-async def get_rooms():
-    """Get list of available rooms"""
-    return rooms_config.to_dict()
+@app.get("/spaces")
+async def get_spaces():
+    """Get list of available spaces"""
+    return spaces_config.to_dict()
 
 
 async def send_message(websocket: WebSocket, message_type: str, data: dict):
@@ -82,133 +82,133 @@ async def send_message(websocket: WebSocket, message_type: str, data: dict):
         print(f"Error sending message: {e}")
 
 
-async def broadcast_to_room(
-    room_name: str,
+async def broadcast_to_space(
+    space_name: str,
     message_type: str,
     data: dict,
     exclude_client_id: Optional[str] = None,
 ):
-    """Broadcast a message to all clients in a room, optionally excluding one"""
-    if room_name not in active_rooms:
+    """Broadcast a message to all clients in a space, optionally excluding one"""
+    if space_name not in active_spaces:
         return
 
-    for client_id in active_rooms[room_name]:
+    for client_id in active_spaces[space_name]:
         if client_id != exclude_client_id:
             websocket = client_websockets.get(client_id)
             if websocket:
                 await send_message(websocket, message_type, data)
 
 
-async def handle_join_room(websocket: WebSocket, client_id: str, data: dict):
-    """Handle client joining a room"""
-    room_id = data.get("room")
+async def handle_join_space(websocket: WebSocket, client_id: str, data: dict):
+    """Handle client joining a space"""
+    space_id = data.get("space")
 
-    if not room_id:
-        await send_message(websocket, "error", {"message": "Room ID is required"})
+    if not space_id:
+        await send_message(websocket, "error", {"message": "Space ID is required"})
         return
 
-    # Validate room exists in configuration
-    room_config = rooms_config.get_room_by_id(room_id)
-    if not room_config:
+    # Validate space exists in configuration
+    space_config = spaces_config.get_space_by_id(space_id)
+    if not space_config:
         await send_message(
             websocket,
             "error",
-            {"message": f"Room '{room_id}' does not exist. Please select a valid room."},
+            {"message": f"Space '{space_id}' does not exist. Please select a valid space."},
         )
         return
 
-    # Check if room is enabled
-    if not room_config.enabled:
+    # Check if space is enabled
+    if not space_config.enabled:
         await send_message(
             websocket,
             "error",
-            {"message": f"Room '{room_config.display_name}' is currently unavailable."},
+            {"message": f"Space '{space_config.display_name}' is currently unavailable."},
         )
         return
 
-    # Initialize room if it doesn't exist
-    if room_id not in active_rooms:
-        active_rooms[room_id] = set()
+    # Initialize space if it doesn't exist
+    if space_id not in active_spaces:
+        active_spaces[space_id] = set()
 
-    # Check if room is full using configured max_participants
-    if len(active_rooms[room_id]) >= room_config.max_participants:
+    # Check if space is full using configured max_participants
+    if len(active_spaces[space_id]) >= space_config.max_participants:
         await send_message(
             websocket,
             "error",
             {
-                "message": f"Room is full. Maximum {room_config.max_participants} participants allowed."
+                "message": f"Space is full. Maximum {space_config.max_participants} participants allowed."
             },
         )
         return
 
-    # Add client to room
-    active_rooms[room_id].add(client_id)
-    client_rooms[client_id] = room_id
+    # Add client to space
+    active_spaces[space_id].add(client_id)
+    client_spaces[client_id] = space_id
 
-    print(f"Client {client_id} joined room: {room_id} ({room_config.display_name})")
+    print(f"Client {client_id} joined space: {space_id} ({space_config.display_name})")
 
     # Determine if this client is the initiator
-    is_initiator = len(active_rooms[room_id]) == 1
+    is_initiator = len(active_spaces[space_id]) == 1
 
     # Notify the joining client
     await send_message(
         websocket,
-        "joined_room",
+        "joined_space",
         {
-            "room": room_id,
-            "participants": list(active_rooms[room_id]),
+            "space": space_id,
+            "participants": list(active_spaces[space_id]),
             "is_initiator": is_initiator,
         },
     )
 
     # Notify other participants
     if not is_initiator:
-        await broadcast_to_room(
-            room_id,
+        await broadcast_to_space(
+            space_id,
             "user_joined",
-            {"sid": client_id, "participants": list(active_rooms[room_id])},
+            {"sid": client_id, "participants": list(active_spaces[space_id])},
             exclude_client_id=client_id,
         )
 
 
-async def handle_leave_room(websocket: WebSocket, client_id: str, data: dict):
-    """Handle client leaving a room"""
-    room_name = client_rooms.get(client_id)
+async def handle_leave_space(websocket: WebSocket, client_id: str, data: dict):
+    """Handle client leaving a space"""
+    space_name = client_spaces.get(client_id)
 
-    if not room_name:
+    if not space_name:
         return
 
-    # Remove client from room
-    if room_name in active_rooms:
-        active_rooms[room_name].discard(client_id)
+    # Remove client from space
+    if space_name in active_spaces:
+        active_spaces[space_name].discard(client_id)
 
         # Notify other participants
-        await broadcast_to_room(
-            room_name,
+        await broadcast_to_space(
+            space_name,
             "user_left",
             {"sid": client_id},
             exclude_client_id=client_id,
         )
 
-        # Clean up empty rooms
-        if len(active_rooms[room_name]) == 0:
-            del active_rooms[room_name]
+        # Clean up empty spaces
+        if len(active_spaces[space_name]) == 0:
+            del active_spaces[space_name]
 
-    client_rooms[client_id] = None
-    print(f"Client {client_id} left room: {room_name}")
+    client_spaces[client_id] = None
+    print(f"Client {client_id} left space: {space_name}")
 
 
 async def handle_offer(websocket: WebSocket, client_id: str, data: dict):
-    """Forward WebRTC offer to the other peer in the room"""
-    room_name = client_rooms.get(client_id)
+    """Forward WebRTC offer to the other peer in the space"""
+    space_name = client_spaces.get(client_id)
     offer = data.get("offer")
 
-    if not room_name or not offer:
+    if not space_name or not offer:
         return
 
-    print(f"Forwarding offer in room: {room_name}")
-    await broadcast_to_room(
-        room_name,
+    print(f"Forwarding offer in space: {space_name}")
+    await broadcast_to_space(
+        space_name,
         "offer",
         {"offer": offer, "sid": client_id},
         exclude_client_id=client_id,
@@ -216,16 +216,16 @@ async def handle_offer(websocket: WebSocket, client_id: str, data: dict):
 
 
 async def handle_answer(websocket: WebSocket, client_id: str, data: dict):
-    """Forward WebRTC answer to the other peer in the room"""
-    room_name = client_rooms.get(client_id)
+    """Forward WebRTC answer to the other peer in the space"""
+    space_name = client_spaces.get(client_id)
     answer = data.get("answer")
 
-    if not room_name or not answer:
+    if not space_name or not answer:
         return
 
-    print(f"Forwarding answer in room: {room_name}")
-    await broadcast_to_room(
-        room_name,
+    print(f"Forwarding answer in space: {space_name}")
+    await broadcast_to_space(
+        space_name,
         "answer",
         {"answer": answer, "sid": client_id},
         exclude_client_id=client_id,
@@ -233,16 +233,16 @@ async def handle_answer(websocket: WebSocket, client_id: str, data: dict):
 
 
 async def handle_ice_candidate(websocket: WebSocket, client_id: str, data: dict):
-    """Forward ICE candidate to the other peer in the room"""
-    room_name = client_rooms.get(client_id)
+    """Forward ICE candidate to the other peer in the space"""
+    space_name = client_spaces.get(client_id)
     candidate = data.get("candidate")
 
-    if not room_name or not candidate:
+    if not space_name or not candidate:
         return
 
-    print(f"Forwarding ICE candidate in room: {room_name}")
-    await broadcast_to_room(
-        room_name,
+    print(f"Forwarding ICE candidate in space: {space_name}")
+    await broadcast_to_space(
+        space_name,
         "ice_candidate",
         {"candidate": candidate, "sid": client_id},
         exclude_client_id=client_id,
@@ -260,8 +260,8 @@ async def handle_message(websocket: WebSocket, client_id: str, message: dict):
     data = message.get("data", {})
 
     handlers = {
-        "join_room": handle_join_room,
-        "leave_room": handle_leave_room,
+        "join_space": handle_join_space,
+        "leave_space": handle_leave_space,
         "offer": handle_offer,
         "answer": handle_answer,
         "ice_candidate": handle_ice_candidate,
@@ -279,26 +279,26 @@ async def handle_disconnect(client_id: str):
     """Clean up when a client disconnects"""
     print(f"Client disconnected: {client_id}")
 
-    # Leave any room the client was in
-    room_name = client_rooms.get(client_id)
-    if room_name and room_name in active_rooms:
-        active_rooms[room_name].discard(client_id)
+    # Leave any space the client was in
+    space_name = client_spaces.get(client_id)
+    if space_name and space_name in active_spaces:
+        active_spaces[space_name].discard(client_id)
 
         # Notify other participants
-        await broadcast_to_room(
-            room_name,
+        await broadcast_to_space(
+            space_name,
             "user_left",
             {"sid": client_id},
             exclude_client_id=client_id,
         )
 
-        # Clean up empty rooms
-        if len(active_rooms[room_name]) == 0:
-            del active_rooms[room_name]
+        # Clean up empty spaces
+        if len(active_spaces[space_name]) == 0:
+            del active_spaces[space_name]
 
     # Clean up client tracking
-    if client_id in client_rooms:
-        del client_rooms[client_id]
+    if client_id in client_spaces:
+        del client_spaces[client_id]
     if client_id in client_websockets:
         del client_websockets[client_id]
 
@@ -314,7 +314,7 @@ async def websocket_endpoint(websocket: WebSocket):
     # Track this connection
     connected_clients[websocket] = client_id
     client_websockets[client_id] = websocket
-    client_rooms[client_id] = None
+    client_spaces[client_id] = None
 
     # Send connected message with client ID
     await send_message(websocket, "connected", {"sid": client_id})

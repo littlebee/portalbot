@@ -1,10 +1,10 @@
 version: "1.0.0"
-default_image_url: "/images/default-room.jpg"
+default_image_url: "/images/default-space.jpg"
 
-rooms:
+spaces:
   - id: "lobby"
     display_name: "Lobby"
-    description: "General meeting room for video chat"
+    description: "General meeting space for video chat"
     image_url: "/images/lobby.jpg"
     max_participants: 2
     enabled: true
