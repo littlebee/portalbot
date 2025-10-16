@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Dict, Optional
 
 
-class RobotSecretsManager:
+class RobotSecrets:
     """Manages robot secret keys loaded from files"""
 
     def __init__(self, secrets_dir: Optional[str] = None):
@@ -57,7 +57,7 @@ class RobotSecretsManager:
             return
 
         # Load all .key files
-        key_files = [f for f in os.listdir(self.secrets_dir) if f.endswith('.key')]
+        key_files = [f for f in os.listdir(self.secrets_dir) if f.endswith(".key")]
 
         for key_file in key_files:
             # Extract robot ID from filename (remove .key extension)
@@ -71,7 +71,7 @@ class RobotSecretsManager:
             # Read secret key
             key_path = os.path.join(self.secrets_dir, key_file)
             try:
-                with open(key_path, 'r') as f:
+                with open(key_path, "r") as f:
                     secret_key = f.read().strip()
 
                 if not secret_key:
@@ -140,10 +140,10 @@ class RobotSecretsManager:
 
 
 # Global instance (will be initialized by public_server)
-_robot_secrets_manager: Optional[RobotSecretsManager] = None
+_robot_secrets_manager: Optional[RobotSecrets] = None
 
 
-def init_robot_secrets(secrets_dir: Optional[str] = None) -> RobotSecretsManager:
+def init_robot_secrets(secrets_dir: Optional[str] = None) -> RobotSecrets:
     """
     Initialize the global robot secrets manager.
 
@@ -151,18 +151,18 @@ def init_robot_secrets(secrets_dir: Optional[str] = None) -> RobotSecretsManager
         secrets_dir: Directory containing robot secret key files
 
     Returns:
-        Initialized RobotSecretsManager instance
+        Initialized RobotSecrets instance
     """
     global _robot_secrets_manager
-    _robot_secrets_manager = RobotSecretsManager(secrets_dir)
+    _robot_secrets_manager = RobotSecrets(secrets_dir)
     return _robot_secrets_manager
 
 
-def get_robot_secrets_manager() -> Optional[RobotSecretsManager]:
+def get_robot_secrets_manager() -> Optional[RobotSecrets]:
     """
     Get the global robot secrets manager instance.
 
     Returns:
-        RobotSecretsManager instance or None if not initialized
+        RobotSecrets instance or None if not initialized
     """
     return _robot_secrets_manager

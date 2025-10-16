@@ -31,7 +31,7 @@ from src.commons.space_config import (  # noqa: E402
 )
 from src.commons.robot_secrets import (  # noqa: E402
     init_robot_secrets,
-    RobotSecretsManager,
+    RobotSecrets,
 )
 
 load_dotenv()
@@ -47,7 +47,7 @@ except Exception as e:
 
 # Initialize robot secrets manager
 try:
-    robot_secrets_manager: RobotSecretsManager = init_robot_secrets()
+    robot_secrets_manager: RobotSecrets = init_robot_secrets()
     print(f"Loaded {len(robot_secrets_manager.get_all_robot_ids())} robot secrets")
 except Exception as e:
     print(f"ERROR: Failed to load robot secrets: {e}")
@@ -68,7 +68,9 @@ active_spaces: Dict[str, Set[str]] = {}  # space_name -> Set[client_id]
 client_websockets: Dict[str, WebSocket] = {}  # client_id -> WebSocket
 
 # Robot tracking
-robot_clients: Dict[str, dict] = {}  # client_id -> {"robot_name": str, "space": str, "controlled_by": Optional[str]}
+robot_clients: Dict[str, dict] = (
+    {}
+)  # client_id -> {"robot_name": str, "space": str, "controlled_by": Optional[str]}
 human_clients: Set[str] = set()  # Set of human client_ids
 
 
@@ -130,7 +132,9 @@ async def handle_join_space(websocket: WebSocket, client_id: str, data: dict):
         await send_message(
             websocket,
             "error",
-            {"message": f"Space '{space_id}' does not exist. Please select a valid space."},
+            {
+                "message": f"Space '{space_id}' does not exist. Please select a valid space."
+            },
         )
         return
 
@@ -139,7 +143,9 @@ async def handle_join_space(websocket: WebSocket, client_id: str, data: dict):
         await send_message(
             websocket,
             "error",
-            {"message": f"Space '{space_config.display_name}' is currently unavailable."},
+            {
+                "message": f"Space '{space_config.display_name}' is currently unavailable."
+            },
         )
         return
 
@@ -280,8 +286,11 @@ async def handle_robot_identify(websocket: WebSocket, client_id: str, data: dict
 
     if not robot_id or not robot_name or not space_id or not secret_key:
         await send_message(
-            websocket, "error",
-            {"message": "Robot identification requires robot_id, robot_name, space, and secret_key"}
+            websocket,
+            "error",
+            {
+                "message": "Robot identification requires robot_id, robot_name, space, and secret_key"
+            },
         )
         return
 
@@ -289,26 +298,29 @@ async def handle_robot_identify(websocket: WebSocket, client_id: str, data: dict
     space_config = spaces_config.get_space_by_id(space_id)
     if not space_config:
         await send_message(
-            websocket, "error",
-            {"message": f"Space '{space_id}' does not exist"}
+            websocket, "error", {"message": f"Space '{space_id}' does not exist"}
         )
         return
 
     # Check if robot_id is in space's allowed list
-    if not robot_secrets_manager.robot_has_access_to_space(robot_id, space_config.robot_ids):
+    if not robot_secrets_manager.robot_has_access_to_space(
+        robot_id, space_config.robot_ids
+    ):
         await send_message(
-            websocket, "error",
-            {"message": f"Robot '{robot_id}' is not authorized to access space '{space_id}'"}
+            websocket,
+            "error",
+            {
+                "message": f"Robot '{robot_id}' is not authorized to access space '{space_id}'"
+            },
         )
-        print(f"Robot authentication failed for {robot_id}: not in space's allowed list")
+        print(
+            f"Robot authentication failed for {robot_id}: not in space's allowed list"
+        )
         return
 
     # Validate robot credentials
     if not robot_secrets_manager.validate_robot(robot_id, secret_key):
-        await send_message(
-            websocket, "error",
-            {"message": "Invalid robot credentials"}
-        )
+        await send_message(websocket, "error", {"message": "Invalid robot credentials"})
         print(f"Robot authentication failed for {robot_id}: invalid secret key")
         return
 
@@ -317,7 +329,7 @@ async def handle_robot_identify(websocket: WebSocket, client_id: str, data: dict
         "robot_id": robot_id,
         "robot_name": robot_name,
         "space": space_id,
-        "controlled_by": None
+        "controlled_by": None,
     }
 
     # Initialize space if needed
@@ -328,23 +340,29 @@ async def handle_robot_identify(websocket: WebSocket, client_id: str, data: dict
     active_spaces[space_id].add(client_id)
     client_spaces[client_id] = space_id
 
-    print(f"Robot '{robot_name}' (ID: {robot_id}) authenticated and joined space: {space_id}")
+    print(
+        f"Robot '{robot_name}' (ID: {robot_id}) authenticated and joined space: {space_id}"
+    )
 
     # Send success response
-    await send_message(websocket, "joined_space", {
-        "space": space_id,
-        "participants": list(active_spaces[space_id]),
-        "is_robot": True,
-        "robot_id": robot_id,
-        "robot_name": robot_name
-    })
+    await send_message(
+        websocket,
+        "joined_space",
+        {
+            "space": space_id,
+            "participants": list(active_spaces[space_id]),
+            "is_robot": True,
+            "robot_id": robot_id,
+            "robot_name": robot_name,
+        },
+    )
 
     # Notify other participants
     await broadcast_to_space(
         space_id,
         "robot_joined",
         {"robot_id": robot_id, "robot_name": robot_name, "client_id": client_id},
-        exclude_client_id=client_id
+        exclude_client_id=client_id,
     )
 
 
@@ -353,10 +371,7 @@ async def handle_control_request(websocket: WebSocket, client_id: str, data: dic
     robot_id = data.get("robot_id")
 
     if not robot_id or robot_id not in robot_clients:
-        await send_message(
-            websocket, "error",
-            {"message": "Invalid robot_id"}
-        )
+        await send_message(websocket, "error", {"message": "Invalid robot_id"})
         return
 
     robot_info = robot_clients[robot_id]
@@ -364,8 +379,7 @@ async def handle_control_request(websocket: WebSocket, client_id: str, data: dic
     # Check if robot is already controlled
     if robot_info["controlled_by"] is not None:
         await send_message(
-            websocket, "error",
-            {"message": "Robot is already being controlled"}
+            websocket, "error", {"message": "Robot is already being controlled"}
         )
         return
 
@@ -377,9 +391,7 @@ async def handle_control_request(websocket: WebSocket, client_id: str, data: dic
     # Forward control request to robot
     robot_ws = client_websockets.get(robot_id)
     if robot_ws:
-        await send_message(robot_ws, "control_request", {
-            "controller_id": client_id
-        })
+        await send_message(robot_ws, "control_request", {"controller_id": client_id})
 
 
 async def handle_control_granted(websocket: WebSocket, client_id: str, data: dict):
@@ -389,16 +401,12 @@ async def handle_control_granted(websocket: WebSocket, client_id: str, data: dic
     # Verify this is a robot client
     if client_id not in robot_clients:
         await send_message(
-            websocket, "error",
-            {"message": "Only robots can grant control"}
+            websocket, "error", {"message": "Only robots can grant control"}
         )
         return
 
     if not controller_id or controller_id not in client_websockets:
-        await send_message(
-            websocket, "error",
-            {"message": "Invalid controller_id"}
-        )
+        await send_message(websocket, "error", {"message": "Invalid controller_id"})
         return
 
     # Grant control
@@ -410,10 +418,14 @@ async def handle_control_granted(websocket: WebSocket, client_id: str, data: dic
     # Notify the human that control was granted
     human_ws = client_websockets.get(controller_id)
     if human_ws:
-        await send_message(human_ws, "control_granted", {
-            "robot_id": client_id,
-            "robot_name": robot_clients[client_id]["robot_name"]
-        })
+        await send_message(
+            human_ws,
+            "control_granted",
+            {
+                "robot_id": client_id,
+                "robot_name": robot_clients[client_id]["robot_name"],
+            },
+        )
 
 
 async def handle_control_release(websocket: WebSocket, client_id: str, data: dict):
@@ -444,7 +456,9 @@ async def handle_control_release(websocket: WebSocket, client_id: str, data: dic
                 # Notify robot
                 robot_ws = client_websockets.get(robot_id)
                 if robot_ws:
-                    await send_message(robot_ws, "control_released", {"controller_id": human_id})
+                    await send_message(
+                        robot_ws, "control_released", {"controller_id": human_id}
+                    )
                 break
 
 
@@ -455,27 +469,22 @@ async def handle_remote_command(websocket: WebSocket, client_id: str, data: dict
     command_data = data.get("data", {})
 
     if not robot_id or robot_id not in robot_clients:
-        await send_message(
-            websocket, "error",
-            {"message": "Invalid robot_id"}
-        )
+        await send_message(websocket, "error", {"message": "Invalid robot_id"})
         return
 
     # Verify this human controls the robot
     if robot_clients[robot_id]["controlled_by"] != client_id:
         await send_message(
-            websocket, "error",
-            {"message": "You do not control this robot"}
+            websocket, "error", {"message": "You do not control this robot"}
         )
         return
 
     # Forward command to robot
     robot_ws = client_websockets.get(robot_id)
     if robot_ws:
-        await send_message(robot_ws, "remote_command", {
-            "command": command,
-            "data": command_data
-        })
+        await send_message(
+            robot_ws, "remote_command", {"command": command, "data": command_data}
+        )
 
 
 async def handle_message(websocket: WebSocket, client_id: str, message: dict):
@@ -518,10 +527,11 @@ async def handle_disconnect(client_id: str):
             controller_id = robot_info["controlled_by"]
             human_ws = client_websockets.get(controller_id)
             if human_ws:
-                await send_message(human_ws, "control_released", {
-                    "robot_id": client_id,
-                    "reason": "Robot disconnected"
-                })
+                await send_message(
+                    human_ws,
+                    "control_released",
+                    {"robot_id": client_id, "reason": "Robot disconnected"},
+                )
 
         del robot_clients[client_id]
 
@@ -533,10 +543,14 @@ async def handle_disconnect(client_id: str):
                 robot_info["controlled_by"] = None
                 robot_ws = client_websockets.get(robot_id)
                 if robot_ws:
-                    await send_message(robot_ws, "control_released", {
-                        "controller_id": client_id,
-                        "reason": "Controller disconnected"
-                    })
+                    await send_message(
+                        robot_ws,
+                        "control_released",
+                        {
+                            "controller_id": client_id,
+                            "reason": "Controller disconnected",
+                        },
+                    )
         human_clients.discard(client_id)
 
     # Leave any space the client was in
