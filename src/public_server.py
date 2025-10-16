@@ -279,28 +279,36 @@ async def handle_robot_identify(websocket: WebSocket, client_id: str, data: dict
     secret_key = data.get("secret_key")
 
     if not robot_id or not robot_name or not space_id or not secret_key:
-        await send_message(websocket, "error",
-            {"message": "Robot identification requires robot_id, robot_name, space, and secret_key"})
+        await send_message(
+            websocket, "error",
+            {"message": "Robot identification requires robot_id, robot_name, space, and secret_key"}
+        )
         return
 
     # Validate space exists
     space_config = spaces_config.get_space_by_id(space_id)
     if not space_config:
-        await send_message(websocket, "error",
-            {"message": f"Space '{space_id}' does not exist"})
+        await send_message(
+            websocket, "error",
+            {"message": f"Space '{space_id}' does not exist"}
+        )
         return
 
     # Check if robot_id is in space's allowed list
     if not robot_secrets_manager.robot_has_access_to_space(robot_id, space_config.robot_ids):
-        await send_message(websocket, "error",
-            {"message": f"Robot '{robot_id}' is not authorized to access space '{space_id}'"})
+        await send_message(
+            websocket, "error",
+            {"message": f"Robot '{robot_id}' is not authorized to access space '{space_id}'"}
+        )
         print(f"Robot authentication failed for {robot_id}: not in space's allowed list")
         return
 
     # Validate robot credentials
     if not robot_secrets_manager.validate_robot(robot_id, secret_key):
-        await send_message(websocket, "error",
-            {"message": "Invalid robot credentials"})
+        await send_message(
+            websocket, "error",
+            {"message": "Invalid robot credentials"}
+        )
         print(f"Robot authentication failed for {robot_id}: invalid secret key")
         return
 
@@ -345,16 +353,20 @@ async def handle_control_request(websocket: WebSocket, client_id: str, data: dic
     robot_id = data.get("robot_id")
 
     if not robot_id or robot_id not in robot_clients:
-        await send_message(websocket, "error",
-            {"message": "Invalid robot_id"})
+        await send_message(
+            websocket, "error",
+            {"message": "Invalid robot_id"}
+        )
         return
 
     robot_info = robot_clients[robot_id]
 
     # Check if robot is already controlled
     if robot_info["controlled_by"] is not None:
-        await send_message(websocket, "error",
-            {"message": "Robot is already being controlled"})
+        await send_message(
+            websocket, "error",
+            {"message": "Robot is already being controlled"}
+        )
         return
 
     # Mark human as requesting control (pending robot validation)
@@ -376,13 +388,17 @@ async def handle_control_granted(websocket: WebSocket, client_id: str, data: dic
 
     # Verify this is a robot client
     if client_id not in robot_clients:
-        await send_message(websocket, "error",
-            {"message": "Only robots can grant control"})
+        await send_message(
+            websocket, "error",
+            {"message": "Only robots can grant control"}
+        )
         return
 
     if not controller_id or controller_id not in client_websockets:
-        await send_message(websocket, "error",
-            {"message": "Invalid controller_id"})
+        await send_message(
+            websocket, "error",
+            {"message": "Invalid controller_id"}
+        )
         return
 
     # Grant control
@@ -439,14 +455,18 @@ async def handle_remote_command(websocket: WebSocket, client_id: str, data: dict
     command_data = data.get("data", {})
 
     if not robot_id or robot_id not in robot_clients:
-        await send_message(websocket, "error",
-            {"message": "Invalid robot_id"})
+        await send_message(
+            websocket, "error",
+            {"message": "Invalid robot_id"}
+        )
         return
 
     # Verify this human controls the robot
     if robot_clients[robot_id]["controlled_by"] != client_id:
-        await send_message(websocket, "error",
-            {"message": "You do not control this robot"})
+        await send_message(
+            websocket, "error",
+            {"message": "You do not control this robot"}
+        )
         return
 
     # Forward command to robot

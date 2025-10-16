@@ -9,8 +9,6 @@ import os
 from pathlib import Path
 from typing import Dict, Optional
 
-from pydantic import BaseModel, Field, field_validator
-
 
 class RobotSecretsManager:
     """Manages robot secret keys loaded from files"""

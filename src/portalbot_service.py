@@ -34,7 +34,7 @@ import threading
 import time
 from enum import Enum
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Optional
 
 import cv2
 import numpy as np
