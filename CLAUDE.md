@@ -11,8 +11,16 @@ Portalbot is a robotics platform built on the `basic_bot` framework that enables
 - **Main Server**: `src/public_server.py` - WebRTC signaling server
   - Handles WebSocket connections for peer-to-peer signaling
   - Space-based video chat (max 2 participants per space)
+  - Robot authentication and control workflow
   - Health check endpoint at `/health`
   - WebSocket endpoint at `/ws`
+- **Robot Service**: `src/portalbot_service.py` - Robot-side telepresence service
+  - Pygame UI (1080x1080 display) with animated robot eyes when idle
+  - Displays remote operator's face when controlled
+  - WebSocket client connecting to public_server
+  - Face detection using OpenCV
+  - Relays commands to basic_bot central_hub
+  - Integrates with basic_bot services via HubStateMonitor
 - **Runtime**: uvicorn (ASGI server)
 - **Port**: 5080 (configurable via PORT env var)
 
@@ -22,6 +30,25 @@ The robot runs multiple services coordinated by basic_bot framework (defined in 
 - `web_server`: Web interface for robot control
 - `vision`: Computer vision processing service
 - `system_stats`: System monitoring service
+- `portalbot`: Robot telepresence service (defined in basic_bot.yml)
+
+### Robot Authentication & Configuration
+- **Robot Configuration**: `portalbot_robot.yml` - Per-robot config file
+  - Contains robot_id, robot_name, space_id, secret_key_file path
+  - Each robot has unique credentials
+- **Space Configuration**: `portalbot_spaces.yml` - Defines available spaces
+  - Lists allowed robot_ids per space via `robot_ids` array
+  - Controls which robots can access which spaces
+- **Robot Secrets**: `robot_secrets/` directory
+  - Contains `<robot-id>.key` files (gitignored)
+  - Managed by `src/commons/robot_secrets.py` (RobotSecrets class)
+  - Loads secrets on server startup
+  - Secret keys never stored in version control
+- **Authentication Flow**:
+  1. Robot connects to public_server with WebSocket
+  2. Sends `robot_identify` message with robot_id, name, space, and secret_key
+  3. Server validates: space exists, robot_id in space's allowed list, secret_key matches
+  4. Robot registered and added to space
 
 ### Frontend (React)
 Location: `webapp/`
@@ -115,7 +142,15 @@ GitHub Actions workflow (`.github/workflows/ci.yml`):
 ```
 .
 ├── src/
-│   └── public_server.py          # FastAPI WebRTC signaling server
+│   ├── public_server.py          # FastAPI WebRTC signaling server
+│   ├── portalbot_service.py      # Robot-side telepresence service
+│   └── commons/
+│       ├── space_config.py       # Space configuration loader
+│       ├── robot_config.py       # Robot configuration loader
+│       └── robot_secrets.py      # Robot secrets management
+├── robot_secrets/                 # Robot secret keys (gitignored)
+│   ├── README.md                 # Instructions for managing secrets
+│   └── <robot-id>.key            # Secret key files (gitignored)
 ├── webapp/                        # React frontend
 │   ├── src/
 │   │   ├── App.tsx               # Main app component
@@ -126,8 +161,10 @@ GitHub Actions workflow (`.github/workflows/ci.yml`):
 │   └── vite.config.ts
 ├── tests/                         # Python tests
 │   ├── conftest.py
-│   └── test_tunnel_service.py
-├── basic_bot.yml                  # Service configuration
+│   └── test_space_config.py
+├── basic_bot.yml                  # Basic bot service configuration
+├── portalbot_spaces.yml           # Space definitions and robot access
+├── portalbot_robot.yml            # Robot instance configuration
 ├── requirements.txt               # Python dependencies
 ├── DEPLOYMENT.md                  # AWS deployment guide
 ├── nginx.conf                     # Nginx configuration
@@ -139,6 +176,7 @@ GitHub Actions workflow (`.github/workflows/ci.yml`):
 Excluded from git:
 ├── logs/                          # Application logs
 ├── pids/                          # Process ID files
+├── robot_secrets/*.key            # Robot secret key files
 ├── node_modules/                  # NPM dependencies
 └── .env                           # Environment variables
 ```
@@ -165,10 +203,33 @@ Excluded from git:
 
 ## Important Notes
 
+### Robot Control Workflow
+The robot control flow follows this sequence:
+1. **Robot Joins**: Robot authenticates and joins its designated space
+2. **Human Joins**: Human joins same space, sees available robots
+3. **Control Request**: Human clicks "Teleport" button, sends `control_request` message
+4. **Validation**: Robot validates audio presence and face detection
+5. **Control Grant**: Robot sends `control_granted` message if validation passes
+6. **Active Control**: Human can send `remote_command` messages to robot
+7. **Release**: Either party can send `control_release` to end control session
+
+**WebSocket Message Types**:
+- Robot → Server: `robot_identify`, `control_granted`, `control_release`
+- Human → Server: `join_space`, `control_request`, `control_release`, `remote_command`
+- Server → Robot: `connected`, `joined_space`, `control_request`, `control_released`, `remote_command`
+- Server → Human: `connected`, `joined_space`, `robot_joined`, `control_granted`, `control_released`
+
+### Robot Secret Key Management
+- Generate new robot keys: `python -c "import secrets; print(secrets.token_urlsafe(32))" > robot_secrets/<robot-id>.key`
+- Add robot_id to space's `robot_ids` array in `portalbot_spaces.yml`
+- Configure robot with matching robot_id in `portalbot_robot.yml`
+- Never commit `.key` files to version control
+
 ### WebRTC Requirements
 - HTTPS is required for camera/microphone access in browsers
 - TURN server needed for NAT traversal in restrictive networks
 - SSL certificates must be valid (Let's Encrypt in production)
+- WebRTC implementation is pending (aiortc integration planned)
 
 ### Service Management
 Use `bb_start` and `bb_stop` commands (from basic_bot) to manage robot services:
@@ -184,6 +245,38 @@ The public server uses these environment variables (optional):
 - `SECRET_KEY`: Flask secret key (generate with `secrets.token_hex(32)`)
 
 ## Common Tasks
+
+### Running the Robot Service
+The robot service runs as part of basic_bot services:
+```bash
+# Start all services including portalbot
+bb_start
+
+# Or run portalbot service directly for testing
+python src/portalbot_service.py
+
+# View robot logs
+tail -f logs/portalbot.log
+```
+
+### Adding a New Robot
+1. Generate a secret key:
+   ```bash
+   python -c "import secrets; print(secrets.token_urlsafe(32))" > robot_secrets/robot-2.key
+   ```
+2. Add robot to space in `portalbot_spaces.yml`:
+   ```yaml
+   spaces:
+     - id: "robot-space"
+       robot_ids: ["robot-1", "robot-2"]  # Add robot-2
+   ```
+3. Create robot config file (or update `portalbot_robot.yml`):
+   ```yaml
+   robot_id: "robot-2"
+   robot_name: "Robot 2"
+   space_id: "robot-space"
+   secret_key_file: "./robot_secrets/robot-2.key"
+   ```
 
 ### Adding a New Route (Frontend)
 Edit `webapp/src/main.tsx` and create a new route:
@@ -219,10 +312,19 @@ sudo tail -f /var/log/nginx/error.log
 ```
 
 ## Repository Information
-- **Current Branch**: bee/publicServer
+- **Current Branch**: bee/portalbot_service
 - **Main Branch**: Not configured (use default branch for PRs)
-- **Git Status**: Clean (at time of CLAUDE.md generation)
-- **Recent Commits**:
-  - 8e5e245: Remove webapp/ and create anew
-  - ee17c3a: add placeholder test for future service
-  - 363d7d6: add aws deployment instructions + updated conf files from walky valky
+- **Recent Work**:
+  - Implemented portalbot_service.py (robot-side telepresence service)
+  - Created secure file-based robot authentication system
+  - Added robot configuration management (robot_config.py, robot_secrets.py)
+  - Implemented control workflow (request/grant/release)
+  - Enhanced public_server.py with robot/human differentiation
+  - All code passes flake8 and mypy linting
+
+## Development Notes
+- Use Black formatter for all Python code
+- Robot service integrates with basic_bot via HubStateMonitor
+- Face detection requires OpenCV with Haar Cascade classifier
+- WebRTC video/audio relay is planned but not yet implemented (aiortc)
+- Control validation (audio + face detection) is stubbed out for now

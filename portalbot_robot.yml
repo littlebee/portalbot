@@ -1,0 +1,27 @@
+# Portalbot Robot Configuration
+#
+# This file configures a portalbot robot instance, telling it which space
+# to connect to and how to authenticate with the public server.
+
+# Robot ID - unique identifier for this robot
+# Must match a .key file in robot_secrets/ directory (e.g., robot_secrets/robot-1.key)
+robot_id: "robot-1"
+
+# Unique name for this robot (displayed to users)
+robot_name: "Robot 1"
+
+# Space ID from portalbot_spaces.yml that this robot belongs to
+space_id: "robot-1"
+
+# Path to file containing the secret key for authentication
+# This file should contain a single line with a secure random string
+# Generate with: python -c "import secrets; print(secrets.token_urlsafe(32))"
+secret_key_file: "./robot_secrets/robot-1.key"
+
+# WebSocket URL of the public server
+# Development: ws://localhost:5080/ws
+# Production: wss://portalbot.net/ws
+public_server_url: "ws://localhost:5080/ws"
+
+# Display size (square display, e.g., 1080x1080)
+display_size: 1080

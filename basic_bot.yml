@@ -1,4 +1,4 @@
-bot_name: "basic_bot"
+bot_name: "portalbot"
 version: "0.1.0"
 
 # environment variables that are common to all services
@@ -20,18 +20,16 @@ env:
 services:
   - name: "central_hub"
     run: "python -m basic_bot.services.central_hub"
-    # you can set environment variables that are only applied
-    # to a specific service
     development_env:
       BB_LOG_ALL_MESSAGES: "true"
 
-  - name: "web_server"
-    run: "python -m basic_bot.services.web_server"
-
   - name: "vision"
     run: "python -m basic_bot.services.vision"
+    env:
+      BB_DISABLE_RECOGNITION_PROVIDER: "true"
 
-  # optional system_stats service
   - name: "system_stats"
     run: "python -m basic_bot.services.system_stats"
 
+  - name: "portalbot"
+    run: "python src/portalbot_service.py"

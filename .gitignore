@@ -1,6 +1,9 @@
 # our stuff
 logs/
 pids/
+robot_secret.key
+robot_secrets/*.key
+!robot_secrets/README.md
 
 node_modules/
 
