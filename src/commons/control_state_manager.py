@@ -56,6 +56,7 @@ class ControlStateManager:
         self.controller_id = controller_id
 
         # TODO: Start validation process (audio + face detection)
+        # See: https://github.com/littlebee/portalbot/issues/6
         # For now, automatically grant control
         await asyncio.sleep(0.5)  # Simulate validation
 
