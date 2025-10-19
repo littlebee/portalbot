@@ -40,7 +40,7 @@ class ControlStateManager:
             on_send_message: Callback for sending messages to public server
                              (async function with signature: message_type, data)
             on_relay_command: Callback for relaying commands to central_hub
-                              (async function with signature: command, data)
+                              (async function with signature: data_dict)
         """
         self.control_state = ControlState.IDLE
         self.controller_id: Optional[str] = None
@@ -73,16 +73,20 @@ class ControlStateManager:
         self.control_state = ControlState.IDLE
         self.controller_id = None
 
-    async def handle_remote_command(self, data: dict):
-        """Relay remote command to central_hub"""
-        command = data.get("command")
-        command_data = data.get("data", {})
+    async def handle_set_angles(self, data: dict):
+        """Handle set_angles message and relay to central_hub"""
+        angles = data.get("angles")  # e.g., {"pan": 90, "tilt": 45}
 
-        logger.info(f"Relaying command to central_hub: {command}")
+        if not angles:
+            logger.warning("Received set_angles without angles data")
+            return
 
-        # Relay command via callback
+        logger.info(f"Relaying set_angles to central_hub: {angles}")
+
+        # Relay to central_hub via callback with correct format
+        # Format: {"servo_angles": {"pan": 90, "tilt": 45}}
         if self.on_relay_command:
-            await self.on_relay_command(command, command_data)
+            await self.on_relay_command({"servo_angles": angles})
 
     def is_controlled(self) -> bool:
         """Check if robot is currently under control"""

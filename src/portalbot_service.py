@@ -138,12 +138,12 @@ class PortalbotService:
         """Send a message to the public server"""
         await self.ws_client.send_message(message_type, data)
 
-    async def relay_command_to_hub(self, command: str, command_data: dict):
-        """Relay remote command to central_hub"""
+    async def relay_command_to_hub(self, data: dict):
+        """Relay command data to central_hub"""
         if self.hub_monitor and self.hub_monitor.connected_socket:
             await messages.send_update_state(
                 self.hub_monitor.connected_socket,
-                {"remote_command": {"command": command, "data": command_data}},
+                data,  # Already formatted as {"servo_angles": {"pan": 90, "tilt": 45}}
             )
 
     async def handle_websocket_message(self, message_type: str, data: dict):
@@ -160,9 +160,9 @@ class PortalbotService:
             # Controller released control
             await self.control_manager.handle_control_released(data)
 
-        elif message_type == "remote_command":
-            # Remote control command to relay to central_hub
-            await self.control_manager.handle_remote_command(data)
+        elif message_type == "set_angles":
+            # Set servo angles command to relay to central_hub
+            await self.control_manager.handle_set_angles(data)
 
         elif message_type == "offer":
             # WebRTC offer from remote operator
