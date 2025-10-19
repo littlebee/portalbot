@@ -15,6 +15,7 @@ spaces:
     # image_url not specified - will use default_image_url
     max_participants: 2
     enabled: true
+    robot_ids: ["robot-1"]  # List of robot IDs allowed to connect to this space
 
   - id: "robot-2"
     display_name: "Robot 2"
