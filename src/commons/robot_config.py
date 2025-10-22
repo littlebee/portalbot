@@ -11,6 +11,7 @@ from typing import Optional
 
 import yaml
 from pydantic import BaseModel, Field, field_validator
+from basic_bot.commons.constants import BB_VISION_PORT
 
 
 class RobotConfig(BaseModel):
@@ -25,6 +26,10 @@ class RobotConfig(BaseModel):
     public_server_url: str = Field(
         "wss://portalbot.net/ws",
         description="WebSocket URL of the public server"
+    )
+    vision_service_url: str = Field(
+        default_factory=lambda: f"http://localhost:{BB_VISION_PORT}",
+        description="URL of the basic_bot vision service for WebRTC relay"
     )
     display_size: int = Field(
         1080, ge=480, le=2160, description="Size of square display (1080x1080)"
