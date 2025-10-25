@@ -21,7 +21,7 @@ secret_key_file: "./robot_secrets/robot-1.key"
 # WebSocket URL of the public server
 # Development: ws://localhost:5080/ws
 # Production: wss://portalbot.net/ws
-public_server_url: "ws://localhost:5080/ws"
+public_server_url: "ws://portalbot.net:5080/ws"
 
 # Display size (square display, e.g., 1080x1080)
 display_size: 1080
