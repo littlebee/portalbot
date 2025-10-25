@@ -125,7 +125,7 @@ class PortalbotService:
     def _load_face_detector(self):
         """Load OpenCV face detector"""
         try:
-            # TODO: I think this requires opencv-contribpython to be installed as
+            # TODO: I think this requires opencv-contrib-python to be installed as
             # opposed to just opencv-python, verify and document installation steps.
             # Try to load Haar Cascade for face detection
             cascade_path = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"  # type: ignore
