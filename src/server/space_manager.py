@@ -83,7 +83,16 @@ class SpaceManager:
         )
 
         # Determine if this client is the initiator
-        is_initiator = len(self.active_spaces[space_id]) == 1
+        # Only humans can be initiators - robots are passive relays
+        # Count human participants only
+        human_count = sum(
+            1
+            for participant_id in self.active_spaces[space_id]
+            if not self.connection_manager.is_robot(participant_id)
+        )
+        is_initiator = human_count == 1 and not self.connection_manager.is_robot(
+            client_id
+        )
 
         # Notify the joining client
         await self.connection_manager.send_message(

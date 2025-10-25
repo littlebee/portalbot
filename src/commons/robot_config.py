@@ -7,29 +7,53 @@ This tells the portalbot service which space it belongs to and how to authentica
 
 import os
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 import yaml
 from pydantic import BaseModel, Field, field_validator
 from basic_bot.commons.constants import BB_VISION_PORT
 
 
+class IceServer(BaseModel):
+    """ICE server configuration for WebRTC NAT traversal"""
+
+    urls: str = Field(..., description="STUN/TURN server URL")
+    username: Optional[str] = Field(None, description="Username for TURN authentication")
+    credential: Optional[str] = Field(
+        None, description="Password for TURN authentication"
+    )
+
+
 class RobotConfig(BaseModel):
     """Configuration for a portalbot robot instance"""
 
-    robot_id: str = Field(..., description="Unique robot ID (matches robot_secrets/<robot-id>.key)")
-    robot_name: str = Field(..., description="Human-readable robot name (displayed to users)")
+    robot_id: str = Field(
+        ..., description="Unique robot ID (matches robot_secrets/<robot-id>.key)"
+    )
+    robot_name: str = Field(
+        ..., description="Human-readable robot name (displayed to users)"
+    )
     space_id: str = Field(..., description="Space ID this robot belongs to")
     secret_key_file: str = Field(
         ..., description="Path to file containing secret key for authentication"
     )
     public_server_url: str = Field(
-        "wss://portalbot.net/ws",
-        description="WebSocket URL of the public server"
+        "wss://portalbot.net/ws", description="WebSocket URL of the public server"
     )
     vision_service_url: str = Field(
         default_factory=lambda: f"http://localhost:{BB_VISION_PORT}",
-        description="URL of the basic_bot vision service for WebRTC relay"
+        description="URL of the basic_bot vision service for WebRTC relay",
+    )
+    ice_servers: List[IceServer] = Field(
+        default_factory=lambda: [
+            IceServer(urls="stun:stun.l.google.com:19302", username=None, credential=None),
+            IceServer(
+                urls="turn:ec2-3-134-87-34.us-east-2.compute.amazonaws.com:3478",
+                username="user",
+                credential="pass",
+            ),
+        ],
+        description="ICE servers for WebRTC NAT traversal (STUN/TURN)",
     )
     display_size: int = Field(
         1080, ge=480, le=2160, description="Size of square display (1080x1080)"

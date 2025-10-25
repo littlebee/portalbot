@@ -173,11 +173,30 @@ class PortalbotService:
         logger.info(f"Relaying WebRTC offer from {sender_id} to vision service")
 
         try:
-            # POST offer to vision service
+            # Convert ICE servers to RTCConfiguration format
+            ice_servers = [
+                {
+                    "urls": server.urls,
+                    **(
+                        {
+                            "username": server.username,
+                            "credential": server.credential,
+                        }
+                        if server.username and server.credential
+                        else {}
+                    ),
+                }
+                for server in self.config.ice_servers
+            ]
+
+            # POST offer to vision service with ICE server configuration
             vision_url = f"{self.config.vision_service_url}/offer"
-            async with self.http_session.post(
-                vision_url, json={"offer": offer}
-            ) as response:
+            payload = {
+                "offer": offer,
+                "ice_servers": ice_servers,
+            }
+
+            async with self.http_session.post(vision_url, json=payload) as response:
                 if response.status == 200:
                     result = await response.json()
                     answer = result.get("answer")
