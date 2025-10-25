@@ -15,7 +15,7 @@ import logging
 from typing import Callable, Optional
 
 import websockets
-from websockets.client import WebSocketClientProtocol
+from websockets.client import WebSocketClientProtocol, connect
 
 logger = logging.getLogger(__name__)
 
@@ -109,17 +109,25 @@ class PortalbotWebSocketClient:
 
         while self.running:
             try:
-                async with websockets.connect(self.server_url) as websocket:
+                async with connect(self.server_url) as websocket:
                     self.websocket = websocket
                     logger.info("Connected to public server")
 
                     # Listen for messages
-                    async for message_text in websocket:
+                    async for message_data in websocket:
                         try:
+                            # Handle both text and binary messages
+                            message_text = (
+                                message_data.decode("utf-8")
+                                if isinstance(message_data, bytes)
+                                else message_data
+                            )
                             message = json.loads(message_text)
                             await self.handle_message(message)
                         except json.JSONDecodeError:
                             logger.error(f"Invalid JSON from server: {message_text}")
+                        except UnicodeDecodeError:
+                            logger.error(f"Invalid UTF-8 in message: {message_data!r}")
                         except Exception as e:
                             logger.error(f"Error handling message: {e}")
 
