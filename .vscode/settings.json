@@ -1,0 +1,18 @@
+{
+    "C_Cpp.errorSquiggles": "enabled",
+    "cSpell.enabled": true,
+    "cSpell.words": [
+        "aiortc",
+        "frontalface",
+        "haarcascade",
+        "haarcascades",
+        "levelname",
+        "mypy",
+        "ndarray",
+        "Portalbot",
+        "pydantic",
+        "pydub",
+        "sounddevice",
+        "webrtc"
+    ]
+}

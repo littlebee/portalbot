@@ -221,5 +221,5 @@ if __name__ == "__main__":
         host="0.0.0.0",
         port=port,
         reload=debug,
-        log_level="info" if debug else "warning",
+        log_level="info",
     )
