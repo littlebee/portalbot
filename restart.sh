@@ -1,7 +1,6 @@
-
 #!/bin/sh
 
-echo "Stopping services...
+echo "Stopping services..."
 bb_stop $@
 
 echo "Sleeping for 5 seconds"
