@@ -31,8 +31,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo apt-get install -y python3-dev pkg-config libavformat-dev libavcodec-dev libavdevice-dev libavutil-dev libavfilter-dev libswscale-dev libswresample-dev \
-          sudo apt-get install -y libopus-dev libvpx-dev libsrtp2-dev
+          sudo apt install -y libavformat libavcodec libavdevice libavutil libavfilter libswscale libswresample
 
           sudo apt install -y python3-pip
           pip install --upgrade pip
