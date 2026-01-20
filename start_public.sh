@@ -4,16 +4,11 @@
 
 source ~/pyenv/wv/bin/activate
 
-mkdir -p ~/walky_valky/logs
-mkdir -p ~/walky_valky/pids
+mkdir -p ~/portalbot/logs
+mkdir -p ~/portalbot/pids
 
-# Start with uvicorn for FastAPI with native WebSockets
-uvicorn public_server:app \
-    --host 0.0.0.0 \
-    --port ${PORT:-5080} \
-    --log-level warning \
-    >> ~/walky_valky/logs/public_server.log 2>&1 &
+python src/public_server.py \
+    >> ~/portalbot/logs/public_server.log 2>&1 &
 
-echo $! > ~/walky_valky/pids/public_server.pid
-echo "Walky Valky FastAPI server started with PID $(cat ~/walky_valky/pids/public_server.pid)"
-
+echo $! > ~/portalbot/pids/public_server.pid
+echo "Portalbot FastAPI server started with PID $(cat ~/portalbot/pids/public_server.pid)"
