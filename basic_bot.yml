@@ -27,6 +27,10 @@ services:
     run: "python -m basic_bot.services.vision"
     env:
       BB_DISABLE_RECOGNITION_PROVIDER: "true"
+    production_env:
+      BB_CAMERA_MODULE: "basic_bot.commons.camera_picamera"
+      BB_USE_ARECORD: "true"
+
 
   - name: "system_stats"
     run: "python -m basic_bot.services.system_stats"
