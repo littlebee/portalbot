@@ -82,18 +82,6 @@ class SpaceManager:
             f"Client {client_id} joined space: {space_id} ({space_config.display_name})"
         )
 
-        # Determine if this client is the initiator
-        # Only humans can be initiators - robots are passive relays
-        # Count human participants only
-        human_count = sum(
-            1
-            for participant_id in self.active_spaces[space_id]
-            if not self.connection_manager.is_robot(participant_id)
-        )
-        is_initiator = human_count == 1 and not self.connection_manager.is_robot(
-            client_id
-        )
-
         # Notify the joining client
         await self.connection_manager.send_message(
             websocket,
@@ -101,18 +89,16 @@ class SpaceManager:
             {
                 "space": space_id,
                 "participants": list(self.active_spaces[space_id]),
-                "is_initiator": is_initiator,
             },
         )
 
         # Notify other participants
-        if not is_initiator:
-            await self.broadcast_to_space(
-                space_id,
-                "user_joined",
-                {"sid": client_id, "participants": list(self.active_spaces[space_id])},
-                exclude_client_id=client_id,
-            )
+        await self.broadcast_to_space(
+            space_id,
+            "user_joined",
+            {"sid": client_id, "participants": list(self.active_spaces[space_id])},
+            exclude_client_id=client_id,
+        )
 
         return True
 

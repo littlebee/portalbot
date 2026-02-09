@@ -56,7 +56,6 @@ export function useWebRTC(): UseWebRTCReturn {
   // Refs for objects that shouldn't trigger re-renders
   const wsRef = useRef<WebSocket | null>(null);
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
-  const isInitiatorRef = useRef(false);
   const reconnectAttemptsRef = useRef(0);
   const reconnectTimerRef = useRef<number | null>(null);
   const pingIntervalRef = useRef<number | null>(null);
@@ -216,7 +215,16 @@ export function useWebRTC(): UseWebRTCReturn {
       try {
         const pc = peerConnectionRef.current;
         if (pc) {
-          await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+          console.log(
+            "Creating remote description from answer from ",
+            data.answer,
+          );
+          const remoteDesc = new RTCSessionDescription({
+            sdp: data.answer,
+            type: "answer",
+          });
+
+          await pc.setRemoteDescription(remoteDesc);
           console.log("Remote description set");
         }
       } catch (error) {
@@ -240,15 +248,23 @@ export function useWebRTC(): UseWebRTCReturn {
     }
   }, []);
 
-  // Handle user joined
+  // This browser joined
+  const handleJoinedSpace = useCallback(
+    async (data: JoinSpaceData) => {
+      console.log("Joined space:", data);
+      setCurrentSpace(data.space);
+      await createPeerConnection();
+      await createOffer();
+    },
+    [createPeerConnection, createOffer],
+  );
+
+  // Other device joined
   const handleUserJoined = useCallback(
     async (_data: UserJoinedData) => {
       console.log("Peer joined, starting WebRTC connection");
       await createPeerConnection();
-
-      if (isInitiatorRef.current) {
-        await createOffer();
-      }
+      await createOffer();
     },
     [createPeerConnection, createOffer],
   );
@@ -286,9 +302,7 @@ export function useWebRTC(): UseWebRTCReturn {
           break;
 
         case "joined_space": {
-          const joinData = data as JoinSpaceData;
-          setCurrentSpace(joinData.space);
-          isInitiatorRef.current = joinData.is_initiator;
+          handleJoinedSpace(data as JoinSpaceData);
           break;
         }
 
@@ -456,7 +470,6 @@ export function useWebRTC(): UseWebRTCReturn {
     // Reset state
     setRemoteStream(null);
     setCurrentSpace(null);
-    isInitiatorRef.current = false;
     setConnectionState("new");
     setIceState("new");
     setSignalingState("stable");
@@ -466,10 +479,8 @@ export function useWebRTC(): UseWebRTCReturn {
   const toggleAudio = useCallback(() => {
     if (localStream) {
       const audioTrack = localStream.getAudioTracks()[0];
-      if (audioTrack) {
-        audioTrack.enabled = !audioTrack.enabled;
-        setIsAudioEnabled(audioTrack.enabled);
-      }
+      audioTrack.enabled = !audioTrack.enabled;
+      setIsAudioEnabled(audioTrack.enabled);
     }
   }, [localStream]);
 
@@ -477,10 +488,8 @@ export function useWebRTC(): UseWebRTCReturn {
   const toggleVideo = useCallback(() => {
     if (localStream) {
       const videoTrack = localStream.getVideoTracks()[0];
-      if (videoTrack) {
-        videoTrack.enabled = !videoTrack.enabled;
-        setIsVideoEnabled(videoTrack.enabled);
-      }
+      videoTrack.enabled = !videoTrack.enabled;
+      setIsVideoEnabled(videoTrack.enabled);
     }
   }, [localStream]);
 
@@ -509,7 +518,7 @@ export function useWebRTC(): UseWebRTCReturn {
         localStream.getTracks().forEach((track) => track.stop());
       }
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   return {
     // State

@@ -67,6 +67,9 @@ class PortalbotService:
     """Main service for the portalbot robot"""
 
     def __init__(self):
+        # Maps public server sender IDs to client IDs for relaying WebRTC commands
+        self.sender_to_client_id_map: dict[str, str] = {}
+
         # Load robot configuration
         try:
             self.config: RobotConfig = load_robot_config()
@@ -160,7 +163,7 @@ class PortalbotService:
             data: Dictionary containing the WebRTC offer from remote human
         """
         offer = data.get("offer")
-        sender_id = data.get("sid")
+        sender_id = str(data.get("sid"))
 
         if not offer:
             logger.error("Received WebRTC offer without offer data")
@@ -173,33 +176,29 @@ class PortalbotService:
         logger.info(f"Relaying WebRTC offer from {sender_id} to vision service")
 
         try:
-            # Convert ICE servers to RTCConfiguration format
-            ice_servers = [
-                {
-                    "urls": server.urls,
-                    **(
-                        {
-                            "username": server.username,
-                            "credential": server.credential,
-                        }
-                        if server.username and server.credential
-                        else {}
-                    ),
-                }
-                for server in self.config.ice_servers
-            ]
-
             # POST offer to vision service with ICE server configuration
             vision_url = f"{self.config.vision_service_url}/offer"
-            payload = {
-                "offer": offer,
-                "ice_servers": ice_servers,
-            }
+
+            # payload = {
+            #     "offer": offer,
+            #     "ice_servers": ice_servers,
+            # }
+            payload = offer
 
             async with self.http_session.post(vision_url, json=payload) as response:
                 if response.status == 200:
                     result = await response.json()
-                    answer = result.get("answer")
+                    logger.info(f"Received offer response: {result}")
+
+                    answer = result.get("sdp")
+                    client_id = result.get("client_id")
+                    if client_id:
+                        self.sender_to_client_id_map[sender_id] = client_id
+                        logger.debug(
+                            f"Mapped sender ID {sender_id} to vision client ID {client_id}"
+                        )
+                    else:
+                        logger.error("Vision service response missing client_id field")
 
                     if answer:
                         logger.info(
@@ -224,24 +223,47 @@ class PortalbotService:
     async def handle_webrtc_ice_candidate(self, data: dict):
         """
         Handle ICE candidate from remote peer.
-
-        Note: Currently the basic_bot vision service may not support
-        ICE candidate relay via REST API. This is a placeholder for
-        future implementation.
-
         Args:
             data: Dictionary containing the ICE candidate
         """
         candidate = data.get("candidate")
         sender_id = data.get("sid")
+        client_id = self.sender_to_client_id_map.get(str(sender_id))
 
         if not candidate:
             logger.warning("Received ICE candidate without candidate data")
             return
 
         logger.debug(f"Received ICE candidate from {sender_id}: {candidate}")
-        # TODO: If vision service supports ICE candidate relay, implement here
-        # For now, we just log it as the vision service may handle ICE internally
+
+        if not self.http_session:
+            logger.error(
+                "HTTP session not initialized, cannot relay WebRTC ice candidate"
+            )
+            return
+
+        try:
+            # POST offer to vision service with ICE server configuration
+            vision_url = f"{self.config.vision_service_url}/ice_candidate"
+
+            payload = {
+                "candidate": candidate,
+                "client_id": client_id,
+            }
+
+            async with self.http_session.post(vision_url, json=payload) as response:
+                if response.status == 200:
+                    result = await response.json()
+                    logger.info(f"Received ICE candidate response: {result}")
+                else:
+                    logger.error(
+                        f"Vision service returned error: {response.status} - "
+                        f"{await response.text()}"
+                    )
+        except aiohttp.ClientError as e:
+            logger.error(f"Failed to connect to vision service: {e}")
+        except Exception as e:
+            logger.error(f"Error relaying WebRTC ice candidate: {e}")
 
     async def handle_websocket_message(self, message_type: str, data: dict):
         """Handle messages from the public server"""
