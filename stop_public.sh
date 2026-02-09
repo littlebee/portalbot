@@ -18,5 +18,3 @@ else
     echo "No process found with PID $PID. Cleaning up PID file."
     rm -f "$PID_FILE"
 fi
-
-
