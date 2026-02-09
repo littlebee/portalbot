@@ -35,7 +35,7 @@ export interface OfferData {
 }
 
 export interface AnswerData {
-  answer: RTCSessionDescriptionInit;
+  answer: string;
   sid: string;
 }
 
