@@ -109,7 +109,7 @@ export function useWebRTC(): UseWebRTCReturn {
   }, []);
 
   // Create peer connection
-  const createPeerConnection = useCallback(async () => {
+  const createPeerConnection = useCallback(() => {
     const pc = new RTCPeerConnection(WEBRTC_CONFIG);
     peerConnectionRef.current = pc;
 
@@ -176,7 +176,7 @@ export function useWebRTC(): UseWebRTCReturn {
         space: currentSpace,
         offer: offer,
       });
-    } catch (error) {
+    } catch (err) {
       console.error("Error creating offer:", error);
       showError("Failed to create connection offer");
     }
@@ -201,7 +201,7 @@ export function useWebRTC(): UseWebRTCReturn {
           space: currentSpace,
           answer: answer,
         });
-      } catch (error) {
+      } catch (err) {
         console.error("Error handling offer:", error);
         showError("Failed to handle connection offer");
       }
@@ -227,7 +227,7 @@ export function useWebRTC(): UseWebRTCReturn {
           await pc.setRemoteDescription(remoteDesc);
           console.log("Remote description set");
         }
-      } catch (error) {
+      } catch (err) {
         console.error("Error handling answer:", error);
         showError("Failed to handle connection answer");
       }
@@ -243,7 +243,7 @@ export function useWebRTC(): UseWebRTCReturn {
         await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
         console.log("ICE candidate added");
       }
-    } catch (error) {
+    } catch (err) {
       console.error("Error adding ICE candidate:", error);
     }
   }, []);
@@ -398,8 +398,8 @@ export function useWebRTC(): UseWebRTCReturn {
       }
     };
 
-    ws.onerror = (error) => {
-      console.error("WebSocket error:", error);
+    ws.onerror = (err) => {
+      console.error("WebSocket error:", err);
       showError("WebSocket connection error");
     };
 
@@ -407,7 +407,7 @@ export function useWebRTC(): UseWebRTCReturn {
       try {
         const message = JSON.parse(event.data);
         handleMessage(message);
-      } catch (error) {
+      } catch (err) {
         console.error("Failed to parse message:", error);
       }
     };
@@ -436,11 +436,11 @@ export function useWebRTC(): UseWebRTCReturn {
 
         // Join the space
         sendMessage("join_space", { space: spaceName });
-      } catch (error) {
+      } catch (err) {
         console.error("Error joining space:", error);
         showError(
           `Failed to access camera/microphone: ${
-            error instanceof Error ? error.message : "Unknown error"
+            err instanceof Error ? err.message : "Unknown error"
           }`,
         );
       }
