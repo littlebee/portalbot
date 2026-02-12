@@ -18,7 +18,7 @@ import asyncio
 import logging
 from typing import Optional
 
-from aiortc import RTCPeerConnection, RTCSessionDescription
+from aiortc import RTCIceCandidate, RTCPeerConnection, RTCSessionDescription
 import numpy as np
 
 from src.commons.audio_stream_player import AudioStreamPlayer
@@ -126,7 +126,8 @@ class WebRTCPeer:
             logger.warning("Received ICE candidate but no peer connection exists")
             return
 
-        await self.peer_connection.addIceCandidate(candidate)
+        rtc_candidate = self.create_RTCIceCandidate(candidate)
+        await self.peer_connection.addIceCandidate(rtc_candidate)
 
     async def process_video_track(self, track):
         """Process incoming video frames from WebRTC track."""
@@ -157,3 +158,25 @@ class WebRTCPeer:
             logger.error(f"Error processing audio track: {e}")
         finally:
             self.audio_player.cleanup_audio_stream()
+
+    def create_RTCIceCandidate(self, candidate: dict) -> RTCIceCandidate:
+        parts = candidate["candidate"].split(" ")
+        foundation = parts[0].split(":")[1]
+        component = int(parts[1])
+        protocol = parts[2]
+        priority = int(parts[3])
+        ip = parts[4]
+        port = int(parts[5])
+        type = parts[7]
+
+        return RTCIceCandidate(
+            component=component,
+            foundation=foundation,
+            ip=ip,
+            port=port,
+            priority=priority,
+            protocol=protocol,
+            type=type,
+            sdpMid=candidate["sdpMid"],
+            sdpMLineIndex=candidate["sdpMLineIndex"],
+        )

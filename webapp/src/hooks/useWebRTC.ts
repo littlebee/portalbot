@@ -228,7 +228,7 @@ export function useWebRTC(): UseWebRTCReturn {
           console.log("Remote description set");
         }
       } catch (err) {
-        console.error("Error handling answer:", error);
+        console.error("Error handling answer:", err);
         showError("Failed to handle connection answer");
       }
     },
@@ -244,7 +244,7 @@ export function useWebRTC(): UseWebRTCReturn {
         console.log("ICE candidate added");
       }
     } catch (err) {
-      console.error("Error adding ICE candidate:", error);
+      console.error("Error adding ICE candidate:", err);
     }
   }, []);
 
@@ -408,7 +408,7 @@ export function useWebRTC(): UseWebRTCReturn {
         const message = JSON.parse(event.data);
         handleMessage(message);
       } catch (err) {
-        console.error("Failed to parse message:", error);
+        console.error("Failed to parse message:", err);
       }
     };
   }, [
@@ -437,7 +437,7 @@ export function useWebRTC(): UseWebRTCReturn {
         // Join the space
         sendMessage("join_space", { space: spaceName });
       } catch (err) {
-        console.error("Error joining space:", error);
+        console.error("Error joining space:", err);
         showError(
           `Failed to access camera/microphone: ${
             err instanceof Error ? err.message : "Unknown error"
