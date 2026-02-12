@@ -56,7 +56,7 @@ class WebRTCPeer:
             self.peer_connection = None
             self.remote_video_frame = None
 
-    async def handle_webrtc_offer(self, data: dict):
+    async def handle_offer(self, data: dict):
         """
         Accept a WebRTC offer relayed from the portalbot_service.
         The tracks from the offer are rendered (audio and video)
@@ -68,12 +68,12 @@ class WebRTCPeer:
         Args:
             data: Dictionary containing the WebRTC offer from remote human
         """
-        offer = data.get("offer")
-
-        if not offer:
-            logger.error("Received WebRTC offer without offer data")
+        sdp = data.get("sdp")
+        offer_type = data.get("type")
+        if not sdp or not offer_type:
+            logger.error("Received WebRTC offer without SDP or type")
             return
-        logger.info(f"Received WebRTC offer from public server: {offer}")
+        logger.info(f"Received WebRTC offer from public server: {sdp=} {offer_type=}")
 
         await self.close_peer_connection()
 
@@ -102,14 +102,15 @@ class WebRTCPeer:
                 logger.warning("WebRTC connection failed, closing peer connection")
 
         # Set remote description from offer
-        offer = RTCSessionDescription(sdp=data["sdp"], type=data["type"])
+        offer = RTCSessionDescription(sdp=sdp, type=offer_type)
         await self.peer_connection.setRemoteDescription(offer)
 
         # Create answer
         answer = await self.peer_connection.createAnswer()
         await self.peer_connection.setLocalDescription(answer)
+        return answer
 
-    async def handle_webrtc_ice_candidate(self, data: dict):
+    async def handle_ice_candidate(self, data: dict):
         """
         Handle ICE candidate from remote peer.
         Args:

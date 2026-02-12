@@ -139,11 +139,15 @@ class PortalbotService:
         await self.forward_offer(
             vision_url, sender_id, offer, on_answer=self.handle_vision_answer
         )
+        ui_url = f"{self.config.onboard_ui_service_url}/offer"
+        await self.forward_offer(
+            ui_url, sender_id, offer, on_answer=self.handle_vision_answer
+        )
 
-    async def handle_vision_answer(self, sender_id: str, payload: dict):
+    async def handle_vision_answer(self, url: str, sender_id: str, payload: dict):
         """Handle the answer from the vision service and send it to public server"""
 
-        logger.info("Received answer from vision service, sending to public server")
+        logger.info(f"Received answer from {url}: {payload}")
 
         answer = payload.get("sdp")
         client_id = payload.get("client_id")
@@ -152,11 +156,9 @@ class PortalbotService:
             logger.debug(
                 f"Mapped sender ID {sender_id} to vision client ID {client_id}"
             )
-        else:
-            logger.error("Vision service response missing client_id field")
 
         if answer:
-            logger.info("Received answer from vision service, sending to public server")
+            logger.info(f"Received answer from {url}, sending to public server")
             await self.send_to_public_server(
                 "answer",
                 {
@@ -164,6 +166,8 @@ class PortalbotService:
                     "sid": sender_id,
                 },
             )
+        else:
+            logger.error(f"Answer from {url} missing 'sdp' field: {payload}")
 
     async def forward_offer(
         self,
@@ -195,18 +199,20 @@ class PortalbotService:
                     logger.info(f"Received offer response from {url}: {result}")
 
                     if on_answer:
-                        await on_answer(self, sender_id, result)
+                        await on_answer(url, sender_id, result)
                     else:
-                        logger.error("Vision service response missing answer field")
+                        logger.error(
+                            f"Service response missing answer field from {url}"
+                        )
                 else:
                     logger.error(
-                        f"Vision service returned error: {response.status} - "
+                        f"Service returned error from {url}: {response.status} - "
                         f"{await response.text()}"
                     )
         except aiohttp.ClientError as e:
-            logger.error(f"Failed to connect to vision service: {e}")
+            logger.error(f"Failed to connect to service at {url}: {e}")
         except Exception as e:
-            logger.error(f"Error relaying WebRTC offer: {e}")
+            logger.error(f"Error relaying WebRTC offer to {url}: {e}")
 
     async def handle_webrtc_ice_candidate(self, data: dict):
         """
@@ -230,28 +236,33 @@ class PortalbotService:
             )
             return
 
-        try:
-            # POST offer to vision service with ICE server configuration
-            vision_url = f"{self.config.vision_service_url}/ice_candidate"
+        # POST offer to vision service with ICE server configuration
+        vision_url = f"{self.config.vision_service_url}/ice_candidate"
+        ui_url = f"{self.config.onboard_ui_service_url}/ice_candidate"
 
-            payload = {
-                "candidate": candidate,
-                "client_id": client_id,
-            }
+        payload = {
+            "candidate": candidate,
+            "client_id": client_id,
+        }
 
-            async with self.http_session.post(vision_url, json=payload) as response:
-                if response.status == 200:
-                    result = await response.json()
-                    logger.info(f"Received ICE candidate response: {result}")
-                else:
-                    logger.error(
-                        f"Vision service returned error: {response.status} - "
-                        f"{await response.text()}"
-                    )
-        except aiohttp.ClientError as e:
-            logger.error(f"Failed to connect to vision service: {e}")
-        except Exception as e:
-            logger.error(f"Error relaying WebRTC ice candidate: {e}")
+        for url in [vision_url, ui_url]:
+            try:
+                logger.info(f"Relaying ICE candidate from {sender_id} to {url}")
+                async with self.http_session.post(url, json=payload) as response:
+                    if response.status == 200:
+                        result = await response.json()
+                        logger.info(
+                            f"Received ICE candidate response from {url}: {result}"
+                        )
+                    else:
+                        logger.error(
+                            f"Service error from {url}: {response.status} - "
+                            f"{await response.text()}"
+                        )
+            except aiohttp.ClientError as e:
+                logger.error(f"ClientError while relaying ICE candidate to {url}: {e}")
+            except Exception as e:
+                logger.error(f"Error relaying WebRTC ice candidate to {url}: {e}")
 
     async def handle_websocket_message(self, message_type: str, data: dict):
         """Handle messages from the public server"""
