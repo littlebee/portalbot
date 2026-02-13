@@ -79,15 +79,7 @@ export class WebRTCPeer {
         // Handle ICE candidates
         pc.onicecandidate = (event) => {
             if (event.candidate) {
-                pc.addIceCandidate(event.candidate).catch((err) => {
-                    this.debug(
-                        "Error adding ICE candidate recv from peer connection:",
-                        err,
-                    );
-                });
-
-                // TODO: is this really neccessary? We are already sending the candidate in the signaling flow, do we need to also add it to the peer connection?
-                console.log(this.id, ":Sending ICE candidate");
+                console.log(this.id, ": Sending ICE candidate");
                 this._onSendMessage("ice_candidate", {
                     candidate: event.candidate,
                 });
@@ -179,6 +171,6 @@ export class WebRTCPeer {
     }
 
     private debug(message: string, ...args: Array<any>) {
-        console.debug(`webRTCPeer [${this.id}]: ${message}`, ...args);
+        console.log(`webRTCPeer [${this.id}]: ${message}`, ...args);
     }
 }
