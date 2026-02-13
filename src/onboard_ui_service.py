@@ -21,8 +21,6 @@ import threading
 from fastapi import FastAPI
 import pygame
 
-from basic_bot.commons.constants import BB_ENV
-
 # Add project root to Python path
 project_root = Path(__file__).parent.parent
 if str(project_root) not in sys.path:
@@ -106,11 +104,11 @@ async def health_check():
     return {"status": "healthy"}
 
 
-@app.post("/offer")
-async def receive_webrtc_offer(data: dict):
-    """Endpoint to receive WebRTC offer forwarded from portalbot_service"""
-    logger.info(f"Received WebRTC offer from portalbot service: {data}")
-    return await webrtc_peer.handle_offer(data)
+@app.get("/offer")
+async def create_webrtc_offer():
+    """Endpoint to create WebRTC offer"""
+    offer = await webrtc_peer.create_offer()
+    return {"sdp": offer.sdp, "type": offer.type}
 
 
 @app.post("/ice_candidate")

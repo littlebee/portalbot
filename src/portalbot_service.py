@@ -139,10 +139,10 @@ class PortalbotService:
         await self.forward_offer(
             vision_url, sender_id, offer, on_answer=self.handle_vision_answer
         )
-        ui_url = f"{self.config.onboard_ui_service_url}/offer"
-        await self.forward_offer(
-            ui_url, sender_id, offer, on_answer=self.handle_vision_answer
-        )
+
+        # TODO: maybe move this the request control flow instead of
+        # doing it for every offer?
+        await self.request_offer_from_ui()
 
     async def handle_vision_answer(self, url: str, sender_id: str, payload: dict):
         """Handle the answer from the vision service and send it to public server"""
@@ -155,6 +155,9 @@ class PortalbotService:
             self.sender_to_client_id_map[sender_id] = client_id
             logger.debug(
                 f"Mapped sender ID {sender_id} to vision client ID {client_id}"
+            )
+            await self.post_ice_candidates(
+                f"{self.config.vision_service_url}/ice_candidate"
             )
 
         if answer:
@@ -214,55 +217,72 @@ class PortalbotService:
         except Exception as e:
             logger.error(f"Error relaying WebRTC offer to {url}: {e}")
 
-    async def handle_webrtc_ice_candidate(self, data: dict):
+    async def request_offer_from_ui(
+        self,
+    ):
         """
-        Handle ICE candidate from remote peer.
-        Args:
-            data: Dictionary containing the ICE candidate
+        Async function to request an offer from the onboard ui REST
+        api and then send the offer to via the 'offer' web socket
+        message.
         """
-        candidate = data.get("candidate")
-        sender_id = data.get("sid")
-        client_id = self.sender_to_client_id_map.get(str(sender_id))
+        logger.info("Requesting WebRTC offer from UI")
+        url = f"{self.config.onboard_ui_service_url}/offer"
 
-        if not candidate:
-            logger.warning("Received ICE candidate without candidate data")
+        try:
+            if not self.http_session:
+                logger.error("HTTP session not initialized, cannot relay WebRTC offer")
+                return
+
+            async with self.http_session.get(url) as response:
+                if response.status == 200:
+                    result = await response.json()
+                    logger.info(f"Received offer response from {url}: {result}")
+                    await self.send_to_public_server("offer", {"offer": result})
+                    # TODO:  does this work when we have just asked for the offer
+                    # but not forwarded it to the web app yet?
+                    await self.post_ice_candidates(
+                        f"{self.config.onboard_ui_service_url}/ice_candidate"
+                    )
+                else:
+                    logger.error(
+                        f"Service returned error from {url}: {response.status} - "
+                        f"{await response.text()}"
+                    )
+        except aiohttp.ClientError as e:
+            logger.error(f"Failed to connect to service at {url}: {e}")
+        except Exception as e:
+            logger.error(f"Error relaying WebRTC offer to {url}: {e}")
+
+    async def post_ice_candidates(self, url: str):
+        """
+        Send ICE candidates from the configuration to the appropriate services.
+        """
+        ice_servers = self.config.ice_servers
+        if not ice_servers:
+            logger.warning("No ICE servers configured, skipping sending candidates")
             return
-
-        logger.debug(f"Received ICE candidate from {sender_id}: {candidate}")
 
         if not self.http_session:
-            logger.error(
-                "HTTP session not initialized, cannot relay WebRTC ice candidate"
-            )
+            logger.error("HTTP session not initialized, cannot send ICE candidates")
             return
 
-        # POST offer to vision service with ICE server configuration
-        vision_url = f"{self.config.vision_service_url}/ice_candidate"
-        ui_url = f"{self.config.onboard_ui_service_url}/ice_candidate"
+        payload = {"ice_servers": ice_servers}
 
-        payload = {
-            "candidate": candidate,
-            "client_id": client_id,
-        }
-
-        for url in [vision_url, ui_url]:
-            try:
-                logger.info(f"Relaying ICE candidate from {sender_id} to {url}")
-                async with self.http_session.post(url, json=payload) as response:
-                    if response.status == 200:
-                        result = await response.json()
-                        logger.info(
-                            f"Received ICE candidate response from {url}: {result}"
-                        )
-                    else:
-                        logger.error(
-                            f"Service error from {url}: {response.status} - "
-                            f"{await response.text()}"
-                        )
-            except aiohttp.ClientError as e:
-                logger.error(f"ClientError while relaying ICE candidate to {url}: {e}")
-            except Exception as e:
-                logger.error(f"Error relaying WebRTC ice candidate to {url}: {e}")
+        try:
+            logger.info(f"Sending ICE candidates from config to {url}")
+            async with self.http_session.post(url, json=payload) as response:
+                if response.status == 200:
+                    result = await response.json()
+                    logger.info(f"Received ICE candidate response from {url}: {result}")
+                else:
+                    logger.error(
+                        f"Service error from {url}: {response.status} - "
+                        f"{await response.text()}"
+                    )
+        except aiohttp.ClientError as e:
+            logger.error(f"ClientError while sending ICE candidates to {url}: {e}")
+        except Exception as e:
+            logger.error(f"Error sending ICE candidates to {url}: {e}")
 
     async def handle_websocket_message(self, message_type: str, data: dict):
         """Handle messages from the public server"""
@@ -283,12 +303,8 @@ class PortalbotService:
             await self.control_manager.handle_set_angles(data)
 
         elif message_type == "offer":
-            # WebRTC offer from remote operator - relay to vision service
+            # WebRTC offer from remote viewer - relay to vision service
             await self.handle_webrtc_offer(data)
-
-        elif message_type == "ice_candidate":
-            # WebRTC ICE candidate from remote operator
-            await self.handle_webrtc_ice_candidate(data)
 
         elif message_type == "error":
             logger.error(f"Error from public server: {data.get('message')}")

@@ -18,7 +18,7 @@ import asyncio
 import logging
 from typing import Optional
 
-from aiortc import RTCIceCandidate, RTCPeerConnection, RTCSessionDescription
+from aiortc import RTCIceCandidate, RTCPeerConnection
 import numpy as np
 
 from src.commons.audio_stream_player import AudioStreamPlayer
@@ -56,31 +56,10 @@ class WebRTCPeer:
             self.peer_connection = None
             self.remote_video_frame = None
 
-    async def handle_offer(self, data: dict):
-        """
-        Accept a WebRTC offer relayed from the portalbot_service.
-        The tracks from the offer are rendered (audio and video)
-        on the onboard UI display.
-
-        If we currently have a webrtc peer connection, it is replaced
-        with the new offer.
-
-        Args:
-            data: Dictionary containing the WebRTC offer from remote human
-        """
-        sdp = data.get("sdp")
-        offer_type = data.get("type")
-        if not sdp or not offer_type:
-            logger.error("Received WebRTC offer without SDP or type")
-            return
-        logger.info(f"Received WebRTC offer from public server: {sdp=} {offer_type=}")
-
-        await self.close_peer_connection()
-
-        # Create new peer connection
+    async def create_peer_connection(self):
+        """Create a new RTCPeerConnection and set up event handlers"""
         self.peer_connection = RTCPeerConnection()
 
-        # Set up event handlers
         @self.peer_connection.on("track")
         def on_track(track):
             logger.info(f"Received WebRTC track: {track.kind}")
@@ -96,19 +75,36 @@ class WebRTCPeer:
                 if self.peer_connection != None
                 else "null"
             )
-
             logger.info(f"WebRTC connection state: {state}")
             if state == "failed":
                 logger.warning("WebRTC connection failed, closing peer connection")
+                await self.close_peer_connection()
 
-        # Set remote description from offer
-        offer = RTCSessionDescription(sdp=sdp, type=offer_type)
-        await self.peer_connection.setRemoteDescription(offer)
+        return self.peer_connection
 
-        # Create answer
-        answer = await self.peer_connection.createAnswer()
-        await self.peer_connection.setLocalDescription(answer)
-        return answer
+    async def create_offer(self):
+        """
+        Create a WebRTC offer sent to the portalbot_service.
+        The tracks from the resulting peer connection are rendered
+        on the onboard UI display.
+
+        If we currently have a webrtc peer connection, it is replaced
+        with the new offer.
+
+        Args:
+            data: Dictionary containing the WebRTC offer from remote human
+        """
+
+        await self.close_peer_connection()  # if it exists
+
+        pc = await self.create_peer_connection()
+        # we don't actually need a data channel, but otherwise
+        # pc.createOffer() fails.
+        pc.createDataChannel("text")
+        offer = await pc.createOffer()
+        await pc.setLocalDescription(offer)
+
+        return offer
 
     async def handle_ice_candidate(self, data: dict):
         """
