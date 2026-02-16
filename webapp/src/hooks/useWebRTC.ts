@@ -41,8 +41,6 @@ export interface WebRTCState {
     localStream: MediaStream | null;
     remoteStream: MediaStream | null;
 
-    // WebRTC peers    peers: Record<string, RTCPeerConnection>;
-
     // Media controls
     isAudioEnabled: boolean;
     isVideoEnabled: boolean;
@@ -71,6 +69,7 @@ export function useWebRTC(): UseWebRTCReturn {
 
     // Media streams
     const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+    const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
 
     // Media controls
     const [isAudioEnabled, setIsAudioEnabled] = useState(true);
@@ -141,7 +140,7 @@ export function useWebRTC(): UseWebRTCReturn {
             viewPeerConnectionRef.current.close();
         }
 
-        const pc = new WebRTCPeer("view-peer", sendMessage);
+        const pc = new WebRTCPeer("view-peer", sendMessage, setRemoteStream);
         pc.createPeerConnection();
 
         viewPeerConnectionRef.current = pc;
@@ -515,7 +514,7 @@ export function useWebRTC(): UseWebRTCReturn {
         clientId,
         currentSpace,
         localStream,
-        remoteStream: viewPeerConnectionRef.current?.remoteStream || null,
+        remoteStream,
         isAudioEnabled,
         isVideoEnabled,
         error,

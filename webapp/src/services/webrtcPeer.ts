@@ -9,9 +9,9 @@ export class WebRTCPeer {
     private _signalingState: RTCSignalingState = "stable";
 
     private _localStream: MediaStream | null = null;
-    private _remoteStream: MediaStream | null = null;
 
     private _onSendMessage: (type: string, payload: any) => void;
+    private _onRemoteStream?: (stream: MediaStream) => void;
 
     get peerConnection() {
         return this._peerConnection;
@@ -37,10 +37,6 @@ export class WebRTCPeer {
         this._localStream = stream;
     }
 
-    get remoteStream() {
-        return this._remoteStream;
-    }
-
     private id: string;
 
     // ID is only used for logging and observability purposes, it is not used
@@ -49,9 +45,11 @@ export class WebRTCPeer {
     constructor(
         id: string,
         onSendMessage: (type: string, payload: any) => void,
+        onRemoteStream?: (stream: MediaStream) => void,
     ) {
         this.id = id;
         this._onSendMessage = onSendMessage;
+        this._onRemoteStream = onRemoteStream;
     }
 
     // Create peer connection
@@ -69,11 +67,19 @@ export class WebRTCPeer {
         // Handle remote stream
         pc.ontrack = (event) => {
             this.debug("Received remote track");
+            if (!this._onRemoteStream) {
+                this.debug(
+                    "Recieved remote track but no onRemoteStream passed in constructor",
+                );
+                return;
+            }
+
             const stream = new MediaStream();
             event.streams[0].getTracks().forEach((track) => {
+                this.debug(`Adding remote track: ${track}`);
                 stream.addTrack(track);
             });
-            this._remoteStream = stream;
+            this._onRemoteStream(stream);
         };
 
         // Handle ICE candidates
@@ -105,6 +111,7 @@ export class WebRTCPeer {
 
     // Create offer
     public async createOffer() {
+        this.debug(`Creating offer`);
         const pc = this._peerConnection;
         if (!pc) return;
 
@@ -120,6 +127,7 @@ export class WebRTCPeer {
 
     // Handle offer
     public async handleOffer(data: OfferData) {
+        this.debug(`Received offer:`, data.offer);
         if (!this._peerConnection) {
             await this.createPeerConnection();
         }
@@ -135,6 +143,7 @@ export class WebRTCPeer {
     }
     // Handle answer
     public async handleAnswer(data: AnswerData) {
+        this.debug(`Received answer:`, data.answer);
         const pc = this._peerConnection;
         if (pc) {
             this.debug(`Creating remote description from answer:`, data.answer);
@@ -151,6 +160,7 @@ export class WebRTCPeer {
 
     // Handle ICE candidate
     public async handleIceCandidate(data: IceCandidateData) {
+        this.debug(`Received ICE candidate:`, data.candidate);
         const pc = this._peerConnection;
         if (pc) {
             await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
@@ -162,7 +172,6 @@ export class WebRTCPeer {
         if (this._peerConnection) {
             this._peerConnection.close();
             this._peerConnection = null;
-            this._remoteStream = null;
             this._connectionState = "closed";
             this._iceState = "closed";
             this._signalingState = "closed";
