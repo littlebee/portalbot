@@ -197,6 +197,9 @@ export function useWebRTC(): UseWebRTCReturn {
     //
     const handleOffer = useCallback(
         async (data: OfferData) => {
+            console.log(
+                "Received control offer from public server, creating control connection",
+            );
             try {
                 const pc = await createControlConnection();
                 const answer = pc.handleOffer(data);

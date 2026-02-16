@@ -140,9 +140,9 @@ class PortalbotService:
             vision_url, sender_id, offer, on_answer=self.handle_vision_answer
         )
 
-        # TODO: maybe move this the request control flow instead of
+        # TODO: move this the request control flow instead of
         # doing it for every offer?
-        # await self.request_offer_from_ui()
+        await self.request_offer_from_ui()
 
     async def handle_vision_answer(self, url: str, sender_id: str, payload: dict):
         """Handle the answer from the vision service and send it to public server"""
