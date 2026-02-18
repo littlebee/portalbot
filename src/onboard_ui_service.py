@@ -15,7 +15,6 @@ person granted control of the robot is shown.
 """
 import sys
 from pathlib import Path
-import logging
 import threading
 
 from fastapi import FastAPI
@@ -30,13 +29,9 @@ from src.commons.face_detector import load_face_detector
 from src.ui.robot_display import RobotDisplay
 from src.ui.webrtc_peer import WebRTCPeer
 from src.commons.constants import PB_ONBOARD_UI_PORT
+from src.commons.logger_utils import get_logger
 
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
-logger = logging.getLogger(__name__)
+logger = get_logger("onboard_ui_service")
 
 running = True
 
@@ -109,6 +104,14 @@ async def create_webrtc_offer():
     """Endpoint to create WebRTC offer"""
     offer = await webrtc_peer.create_offer()
     return {"sdp": offer.sdp, "type": offer.type}
+
+
+@app.post("/answer")
+async def receive_webrtc_answer(data: dict):
+    """Endpoint to receive WebRTC answer from portalbot_service"""
+    logger.info(f"Received WebRTC answer from portalbot service: {data}")
+    await webrtc_peer.handle_answer(data)
+    return {"status": "Answer received"}
 
 
 @app.post("/ice_candidate")

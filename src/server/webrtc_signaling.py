@@ -9,6 +9,9 @@ Handles:
 """
 
 from fastapi import WebSocket
+from src.commons.logger_utils import get_logger
+
+logger = get_logger("webrtc_signaling")
 
 
 class WebRTCSignaling:
@@ -47,12 +50,41 @@ class WebRTCSignaling:
         answer = data.get("answer")
 
         if not space_name or not answer:
+            logger.error("Received answer without space name or answer data")
             return
 
         print(f"Forwarding answer in space: {space_name}")
+        # TODO : this should only be sent to the peer that sent the offer,
+        # not broadcast to the whole space
         await self.space_manager.broadcast_to_space(
             space_name,
             "answer",
+            {"answer": answer, "sid": client_id},
+            exclude_client_id=client_id,
+        )
+
+    # TODO : DRY up handle_answer and handle_offer since they are almost identical except for the message type and payload key
+    async def handle_control_answer(
+        self, websocket: WebSocket, client_id: str, data: dict
+    ):
+        """Forward WebRTC answer to the other peer in the space"""
+        space_name = self.connection_manager.get_client_space(client_id)
+        answer = data.get("answer")
+
+        logger.info(
+            f"Handling control answer from client {client_id} in space {space_name}"
+        )
+
+        if not space_name or not answer:
+            logger.error("Received control answer without space name or answer data")
+            return
+
+        print(f"Forwarding answer in space: {space_name}")
+        # TODO : this should only be sent to the peer that sent the offer,
+        # not broadcast to the whole space
+        await self.space_manager.broadcast_to_space(
+            space_name,
+            "control_answer",
             {"answer": answer, "sid": client_id},
             exclude_client_id=client_id,
         )

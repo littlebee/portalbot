@@ -15,20 +15,17 @@ person granted control of the robot is shown.
 """
 
 import asyncio
-import logging
 from typing import Optional
 
-from aiortc import RTCIceCandidate, RTCPeerConnection
+from aiortc import RTCIceCandidate, RTCPeerConnection, RTCSessionDescription
 import numpy as np
 
 from src.commons.audio_stream_player import AudioStreamPlayer
+from src.commons.logger_utils import get_logger
 
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
-logger = logging.getLogger(__name__)
+logger = get_logger("webrtc_peer")
 
 
 class WebRTCPeer:
@@ -58,9 +55,9 @@ class WebRTCPeer:
 
     async def create_peer_connection(self):
         """Create a new RTCPeerConnection and set up event handlers"""
-        self.peer_connection = RTCPeerConnection()
+        pc = RTCPeerConnection()
 
-        @self.peer_connection.on("track")
+        @pc.on("track")
         def on_track(track):
             logger.info(f"Received WebRTC track: {track.kind}")
             if track.kind == "video":
@@ -68,7 +65,7 @@ class WebRTCPeer:
             elif track.kind == "audio":
                 asyncio.create_task(self.process_audio_track(track))
 
-        @self.peer_connection.on("connectionstatechange")
+        @pc.on("connectionstatechange")
         async def on_connectionstatechange():
             state = (
                 self.peer_connection.connectionState
@@ -80,7 +77,8 @@ class WebRTCPeer:
                 logger.warning("WebRTC connection failed, closing peer connection")
                 await self.close_peer_connection()
 
-        return self.peer_connection
+        self.peer_connection = pc
+        return pc
 
     async def create_offer(self):
         """
@@ -98,13 +96,31 @@ class WebRTCPeer:
         await self.close_peer_connection()  # if it exists
 
         pc = await self.create_peer_connection()
-        # we don't actually need a data channel, but otherwise
-        # pc.createOffer() fails.
-        pc.createDataChannel("text")
+        pc.addTransceiver("video", direction="recvonly")
+        pc.addTransceiver("audio", direction="recvonly")
         offer = await pc.createOffer()
+        logger.info("Created new WebRTC offer, setting local description")
         await pc.setLocalDescription(offer)
 
         return offer
+
+    async def handle_answer(self, answer: dict):
+        """
+        Handle WebRTC answer from portalbot_service and set it as the remote description.
+
+        Args:
+            answer: Dictionary containing the WebRTC answer from portalbot_service
+        """
+        if not self.peer_connection:
+            logger.error("Received WebRTC answer but no peer connection exists")
+            return
+
+        if not answer:
+            logger.error("Received WebRTC answer without answer data")
+            return
+
+        logger.info("Setting remote description with received WebRTC answer")
+        await self.peer_connection.setRemoteDescription(RTCSessionDescription(**answer))
 
     async def handle_ice_candidate(self, data: dict):
         """
@@ -127,9 +143,13 @@ class WebRTCPeer:
 
     async def process_video_track(self, track):
         """Process incoming video frames from WebRTC track."""
+        frame_count = 0
         try:
             while not self.stopping:
                 self.remote_video_frame = await track.recv()
+                frame_count += 1
+                if (frame_count % 100) == 0:
+                    logger.info(f"Received 100 frames ({frame_count})")
         except Exception as e:
             logger.error(f"Error processing video track: {e}")
 

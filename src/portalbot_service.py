@@ -25,7 +25,6 @@ a local websocket connection.
 """
 
 import asyncio
-import logging
 import sys
 import threading
 from pathlib import Path
@@ -46,15 +45,12 @@ from src.commons.control_state_manager import (  # noqa: E402
 from src.commons.portalbot_websocket_client import (  # noqa: E402
     PortalbotWebSocketClient,
 )
+from src.commons.logger_utils import get_logger
 from basic_bot.commons.hub_state import HubState  # noqa: E402
 from basic_bot.commons.hub_state_monitor import HubStateMonitor  # noqa: E402
 from basic_bot.commons import messages  # noqa: E402
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
-logger = logging.getLogger(__name__)
+logger = get_logger("portalbot_service")
 
 
 class PortalbotService:
@@ -147,7 +143,7 @@ class PortalbotService:
     async def handle_vision_answer(self, url: str, sender_id: str, payload: dict):
         """Handle the answer from the vision service and send it to public server"""
 
-        logger.info(f"Received answer from {url}: {payload}")
+        logger.info(f"Received answer from {url}")
 
         answer = payload.get("sdp")
         client_id = payload.get("client_id")
@@ -196,7 +192,7 @@ class PortalbotService:
             async with self.http_session.post(url, json=payload) as response:
                 if response.status == 200:
                     result = await response.json()
-                    logger.info(f"Received offer response from {url}: {result}")
+                    logger.info(f"Received offer response from {url}")
 
                     if on_answer:
                         await on_answer(url, sender_id, result)
@@ -233,7 +229,7 @@ class PortalbotService:
             async with self.http_session.get(url) as response:
                 if response.status == 200:
                     result = await response.json()
-                    logger.info(f"Received offer response from {url}: {result}")
+                    logger.info(f"Received ui offer response from {url}")
                     await self.send_to_public_server("offer", {"offer": result})
                 else:
                     logger.error(
@@ -244,6 +240,43 @@ class PortalbotService:
             logger.error(f"Failed to connect to service at {url}: {e}")
         except Exception as e:
             logger.error(f"Error relaying WebRTC offer to {url}: {e}")
+
+    async def handle_control_answer(self, data: dict):
+        """
+        Forward control WebRTC answer to local onboard UI service.
+        """
+        answer = data.get("answer")
+
+        if not answer:
+            logger.error("Received control WebRTC answer without answer data")
+            return
+
+        url = f"{self.config.onboard_ui_service_url}/answer"
+        try:
+            if not self.http_session:
+                logger.error(
+                    "HTTP session not initialized, cannot relay WebRTC control answer"
+                )
+                return
+
+            payload = answer
+            logger.info(
+                f"Relaying control WebRTC answer to UI at {url} with payload: {payload}"
+            )
+            async with self.http_session.post(url, json=payload) as response:
+                if response.status == 200:
+                    result = await response.json()
+                    logger.info(f"Received control answer response from {url}")
+                    logger.debug(f"response: {result}")
+                else:
+                    logger.error(
+                        f"Service returned error from {url}: {response.status} - "
+                        f"{await response.text()}"
+                    )
+        except aiohttp.ClientError as e:
+            logger.error(f"Failed to connect to service at {url}: {e}")
+        except Exception as e:
+            logger.error(f"Error relaying WebRTC control answer to {url}: {e}")
 
     async def handle_webrtc_ice_candidate(self, data: dict):
         """
@@ -278,11 +311,11 @@ class PortalbotService:
 
         for url in [vision_url, ui_url]:
             try:
-                logger.info(f"Relaying ICE candidate from {sender_id} to {url}")
+                logger.debug(f"Relaying ICE candidate from {sender_id} to {url}")
                 async with self.http_session.post(url, json=payload) as response:
                     if response.status == 200:
                         result = await response.json()
-                        logger.info(
+                        logger.debug(
                             f"Received ICE candidate response from {url}: {result}"
                         )
                     else:
@@ -316,6 +349,10 @@ class PortalbotService:
         elif message_type == "offer":
             # WebRTC offer from remote operator - relay to vision service
             await self.handle_webrtc_offer(data)
+
+        elif message_type == "control_answer":
+            # WebRTC answer from remote operator in response to control offer - relay to onboard UI service
+            await self.handle_control_answer(data)
 
         elif message_type == "ice_candidate":
             # WebRTC ICE candidate from remote operator

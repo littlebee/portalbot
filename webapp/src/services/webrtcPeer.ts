@@ -10,7 +10,7 @@ export class WebRTCPeer {
 
     private _localStream: MediaStream | null = null;
 
-    private _onSendMessage: (type: string, payload: any) => void;
+    private _onIceCandidateRecv: (type: string, payload: any) => void;
     private _onRemoteStream?: (stream: MediaStream) => void;
 
     get peerConnection() {
@@ -44,11 +44,11 @@ export class WebRTCPeer {
     // server, but it doesn't have to be.
     constructor(
         id: string,
-        onSendMessage: (type: string, payload: any) => void,
+        onIceCandidateRecv: (type: string, payload: any) => void,
         onRemoteStream?: (stream: MediaStream) => void,
     ) {
         this.id = id;
-        this._onSendMessage = onSendMessage;
+        this._onIceCandidateRecv = onIceCandidateRecv;
         this._onRemoteStream = onRemoteStream;
     }
 
@@ -56,13 +56,7 @@ export class WebRTCPeer {
     public createPeerConnection() {
         const pc = new RTCPeerConnection(WEBRTC_CONFIG);
         this._peerConnection = pc;
-
-        // Add local stream tracks
-        if (this.localStream) {
-            this.localStream.getTracks().forEach((track) => {
-                pc.addTrack(track, this.localStream!);
-            });
-        }
+        this.debug("Peer connection created with config:", WEBRTC_CONFIG);
 
         // Handle remote stream
         pc.ontrack = (event) => {
@@ -85,8 +79,15 @@ export class WebRTCPeer {
         // Handle ICE candidates
         pc.onicecandidate = (event) => {
             if (event.candidate) {
-                console.log(this.id, ": Sending ICE candidate");
-                this._onSendMessage("ice_candidate", {
+                this.debug("Sending ICE candidate");
+                // TODO : understand why this is needed. Presumably the ice
+                // candidate sent by the robot already has the correct SDP mid
+                // and mline index, so we shouldn't need to send through
+                // the signaling server again. However, if we don't do this,
+                // then the ICE connection never completes and users cannot
+                // see/hear the bot AV unless they are on the same local
+                // network as the bot. This may be
+                this._onIceCandidateRecv("ice_candidate", {
                     candidate: event.candidate,
                 });
             }
@@ -113,7 +114,10 @@ export class WebRTCPeer {
     public async createOffer() {
         this.debug(`Creating offer`);
         const pc = this._peerConnection;
-        if (!pc) return;
+        if (!pc) {
+            this.error("Cannot create offer: Peer connection not initialized");
+            return;
+        }
 
         const offer = await pc.createOffer({
             offerToReceiveAudio: true,
@@ -125,61 +129,103 @@ export class WebRTCPeer {
         return offer;
     }
 
+    private addLocalTracks() {
+        this.debug(`Adding local tracks to peer connection`);
+        const pc = this._peerConnection;
+        if (!pc) {
+            this.error(
+                "Cannot add local tracks: Peer connection not initialized",
+            );
+            return;
+        }
+        if (!this.localStream) {
+            // This is allowed because useWebRTC creates two peer connections
+            // one for the control channel which only has browser audio
+            // and video tracks added to it, and a view peer connection
+            // which has the local media stream tracks added to it.
+            this.debug("No local stream available to add tracks from");
+            return;
+        }
+        // Add local stream tracks
+        this.localStream.getTracks().forEach((track) => {
+            this.debug(`Adding local track: ${track.kind}`);
+            pc.addTrack(track, this.localStream!);
+        });
+    }
+
     // Handle offer
     public async handleOffer(data: OfferData) {
         this.debug(`Received offer:`, data.offer);
-        if (!this._peerConnection) {
-            await this.createPeerConnection();
+        const pc = this._peerConnection;
+        if (!pc) {
+            this.error("Cannot handle offer: Peer connection not initialized");
+            return;
         }
-
-        const pc = this._peerConnection!;
         await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
 
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
+
+        this.addLocalTracks();
 
         this.debug(`Sending answer`);
         return answer;
     }
     // Handle answer
     public async handleAnswer(data: AnswerData) {
-        this.debug(`Received answer:`, data.answer);
         const pc = this._peerConnection;
-        if (pc) {
-            this.debug(`Creating remote description from answer:`, data.answer);
-
-            const remoteDesc = new RTCSessionDescription({
-                sdp: data.answer,
-                type: "answer",
-            });
-
-            await pc.setRemoteDescription(remoteDesc);
-            this.debug(`Remote description set`);
+        if (!pc) {
+            this.error("Cannot handle answer: Peer connection not initialized");
+            return;
         }
+        this.debug(`Creating remote description from answer:`, data.answer);
+
+        const remoteDesc = new RTCSessionDescription({
+            sdp: data.answer,
+            type: "answer",
+        });
+
+        await pc.setRemoteDescription(remoteDesc);
+        this.debug(`Remote description set`);
     }
 
     // Handle ICE candidate
     public async handleIceCandidate(data: IceCandidateData) {
         this.debug(`Received ICE candidate:`, data.candidate);
         const pc = this._peerConnection;
-        if (pc) {
-            await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
-            this.debug(`ICE candidate added`);
+        if (!pc) {
+            this.error(
+                "Cannot handle ICE candidate: Peer connection not initialized",
+            );
+            return;
         }
+
+        await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+        this.debug(`ICE candidate added`);
     }
 
     public close() {
         if (this._peerConnection) {
             this._peerConnection.close();
-            this._peerConnection = null;
-            this._connectionState = "closed";
-            this._iceState = "closed";
-            this._signalingState = "closed";
-            this.debug(`Peer connection closed`);
         }
+        this._peerConnection = null;
+        this._connectionState = "closed";
+        this._iceState = "closed";
+        this._signalingState = "closed";
+        this.debug(`Peer connection closed`);
+    }
+
+    private getLogPrefix() {
+        return `webRTCPeer [${this.id}]`;
     }
 
     private debug(message: string, ...args: Array<any>) {
-        console.log(`webRTCPeer [${this.id}]: ${message}`, ...args);
+        // TODO: Don't log anything unless there is a location parameter
+        // named "debug-webrtc" in the URL.
+        console.log(`${this.getLogPrefix()}: ${message}`, ...args);
+    }
+
+    private error(message: string, ...args: Array<any>) {
+        this.error(`${this.getLogPrefix()} ERROR: ${message}`, ...args);
     }
 }

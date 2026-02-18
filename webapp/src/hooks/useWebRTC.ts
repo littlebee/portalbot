@@ -27,6 +27,8 @@ import {
 
 import { WebRTCPeer } from "@/services/webrtcPeer";
 
+let _gLocalStream: MediaStream | null = null;
+
 export interface WebRTCState {
     viewPeer: WebRTCPeer | null;
     controlPeer: WebRTCPeer | null;
@@ -159,8 +161,13 @@ export function useWebRTC(): UseWebRTCReturn {
             controlPeerConnectionRef.current.close();
         }
 
+        console.log(
+            "Creating control peer connection with local stream:",
+            localStream,
+            _gLocalStream,
+        );
         const pc = new WebRTCPeer("control-peer", sendMessage);
-        pc.localStream = localStream;
+        pc.localStream = _gLocalStream;
         pc.createPeerConnection();
 
         controlPeerConnectionRef.current = pc;
@@ -186,7 +193,7 @@ export function useWebRTC(): UseWebRTCReturn {
                 offer: offer,
             });
         } catch (err) {
-            console.error("Error creating offer:", error);
+            console.error("Error creating offer:", err);
             showError("Failed to create connection offer");
         }
     }, [currentSpace, sendMessage, showError]);
@@ -202,15 +209,15 @@ export function useWebRTC(): UseWebRTCReturn {
             );
             try {
                 const pc = await createControlConnection();
-                const answer = pc.handleOffer(data);
+                const answer = await pc.handleOffer(data);
 
-                console.log("Sending answer");
-                sendMessage("answer", {
+                console.log("Sending control answer");
+                sendMessage("control_answer", {
                     space: currentSpace,
                     answer: answer,
                 });
             } catch (err) {
-                console.error("Error handling offer:", error);
+                console.error("Error handling offer:", err);
                 showError("Failed to handle connection offer");
             }
         },
@@ -220,6 +227,7 @@ export function useWebRTC(): UseWebRTCReturn {
     // Handle answer
     const handleAnswer = useCallback(
         async (data: AnswerData) => {
+            console.log("Received answer from public server: ", data);
             try {
                 const pc = viewPeerConnectionRef.current;
                 if (pc) {
@@ -424,7 +432,9 @@ export function useWebRTC(): UseWebRTCReturn {
                     await navigator.mediaDevices.getUserMedia(
                         MEDIA_CONSTRAINTS,
                     );
+                console.log("Obtained local media stream", stream);
                 setLocalStream(stream);
+                _gLocalStream = stream;
 
                 // Join the space
                 sendMessage("join_space", { space: spaceName });

@@ -18,13 +18,14 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 
+
 # Add project root to Python path for imports to work when running directly
 # This allows running: python src/public_server.py
 project_root = Path(__file__).parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-from src.commons.space_config import (  # noqa: E402
+from src.commons.space_config import (
     load_spaces_config,
     SpacesConfiguration,
 )
@@ -32,29 +33,34 @@ from src.commons.robot_secrets import (  # noqa: E402
     init_robot_secrets,
     RobotSecrets,
 )
-from src.server.connection_manager import ConnectionManager  # noqa: E402
-from src.server.space_manager import SpaceManager  # noqa: E402
-from src.server.robot_control_handler import RobotControlHandler  # noqa: E402
-from src.server.webrtc_signaling import WebRTCSignaling  # noqa: E402
+from src.server.connection_manager import ConnectionManager
+from src.server.space_manager import SpaceManager
+from src.server.robot_control_handler import RobotControlHandler
+from src.server.webrtc_signaling import WebRTCSignaling
+from src.commons.logger_utils import get_logger
+
+logger = get_logger("public_server")
 
 load_dotenv()
 
 # Load space configuration
 try:
     spaces_config: SpacesConfiguration = load_spaces_config()
-    print(f"Loaded {len(spaces_config.spaces)} spaces from configuration")
+    logger.info(f"Loaded {len(spaces_config.spaces)} spaces from configuration")
 except Exception as e:
-    print(f"ERROR: Failed to load space configuration: {e}")
-    print("Server will not start without valid space configuration.")
+    logger.error(f"Failed to load space configuration: {e}")
+    logger.error("Server will not start without valid space configuration.")
     raise
 
 # Initialize robot secrets manager
 try:
     robot_secrets_manager: RobotSecrets = init_robot_secrets()
-    print(f"Loaded {len(robot_secrets_manager.get_all_robot_ids())} robot secrets")
+    logger.info(
+        f"Loaded {len(robot_secrets_manager.get_all_robot_ids())} robot secrets"
+    )
 except Exception as e:
-    print(f"ERROR: Failed to load robot secrets: {e}")
-    print("Server will not start without valid robot secrets.")
+    logger.error(f"Failed to load robot secrets: {e}")
+    logger.error("Server will not start without valid robot secrets.")
     raise
 
 # Create FastAPI app
@@ -118,6 +124,7 @@ async def handle_leave_space(websocket: WebSocket, client_id: str, data: dict):
 
 async def handle_message(websocket: WebSocket, client_id: str, message: dict):
     """Route incoming messages to appropriate handlers"""
+    logger.info(f"Received wss message from {client_id}: {message}")
     message_type: str = str(message.get("type"))
     data = message.get("data", {})
 
@@ -126,6 +133,7 @@ async def handle_message(websocket: WebSocket, client_id: str, message: dict):
         "leave_space": handle_leave_space,
         "offer": webrtc_signaling.handle_offer,
         "answer": webrtc_signaling.handle_answer,
+        "control_answer": webrtc_signaling.handle_control_answer,
         "ice_candidate": webrtc_signaling.handle_ice_candidate,
         "ping": handle_ping,
         "robot_identify": robot_control_handler.handle_robot_identify,
@@ -139,12 +147,12 @@ async def handle_message(websocket: WebSocket, client_id: str, message: dict):
     if handler:
         await handler(websocket, client_id, data)
     else:
-        print(f"Unknown message type: {message_type}")
+        logger.warning(f"Unknown message type: {message_type}")
 
 
 async def handle_disconnect(client_id: str):
     """Clean up when a client disconnects"""
-    print(f"Client disconnected: {client_id}")
+    logger.info(f"Client disconnected: {client_id}")
 
     # Handle robot-specific disconnect
     await robot_control_handler.handle_robot_disconnect(client_id)
@@ -173,7 +181,7 @@ async def websocket_endpoint(websocket: WebSocket):
     # Send connected message with client ID
     await connection_manager.send_message(websocket, "connected", {"sid": client_id})
 
-    print(f"Client connected: {client_id}")
+    logger.info(f"Client connected: {client_id}")
 
     try:
         while True:
@@ -185,7 +193,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 data = json.loads(message)
                 await handle_message(websocket, client_id, data)
             except json.JSONDecodeError:
-                print(f"Invalid JSON received from {client_id}")
+                logger.error(f"Invalid JSON received from {client_id}")
                 await connection_manager.send_message(
                     websocket, "error", {"message": "Invalid JSON"}
                 )
@@ -193,7 +201,7 @@ async def websocket_endpoint(websocket: WebSocket):
     except WebSocketDisconnect:
         await handle_disconnect(client_id)
     except Exception as e:
-        print(f"Error in WebSocket connection {client_id}: {e}")
+        logger.error(f"Error in WebSocket connection {client_id}: {e}")
         await handle_disconnect(client_id)
     finally:
         # Clean up connection tracking
