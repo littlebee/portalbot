@@ -48,13 +48,15 @@ class WebRTCPeer:
     async def close_peer_connection(self):
         """Close the current peer connection but keep the option to create a new one later"""
         if self.peer_connection:
-            logger.info("Closing existing peer connection before accepting new offer")
+            logger.info("Closing existing peer connection")
             await self.peer_connection.close()
             self.peer_connection = None
             self.remote_video_frame = None
 
     async def create_peer_connection(self):
         """Create a new RTCPeerConnection and set up event handlers"""
+        await self.close_peer_connection()
+
         pc = RTCPeerConnection()
 
         @pc.on("track")
@@ -76,51 +78,36 @@ class WebRTCPeer:
             if state == "failed":
                 logger.warning("WebRTC connection failed, closing peer connection")
                 await self.close_peer_connection()
+            if state == "closed":
+                logger.info("WebRTC connection closed, cleaning up peer connection")
+                await self.close_peer_connection()
 
         self.peer_connection = pc
         return pc
 
-    async def create_offer(self):
+    async def handle_offer(self, offer: dict):
         """
-        Create a WebRTC offer sent to the portalbot_service.
-        The tracks from the resulting peer connection are rendered
-        on the onboard UI display.
+        Handle incoming WebRTC offer from remote human operator.
 
         If we currently have a webrtc peer connection, it is replaced
         with the new offer.
 
         Args:
-            data: Dictionary containing the WebRTC offer from remote human
+            offer: Dictionary containing the WebRTC offer from remote human
         """
-
-        await self.close_peer_connection()  # if it exists
+        logger.info(f"Received WebRTC offer; {offer}")
 
         pc = await self.create_peer_connection()
-        pc.addTransceiver("video", direction="recvonly")
-        pc.addTransceiver("audio", direction="recvonly")
-        offer = await pc.createOffer()
-        logger.info("Created new WebRTC offer, setting local description")
-        await pc.setLocalDescription(offer)
+        # handle offer
+        await pc.setRemoteDescription(RTCSessionDescription(**offer))
 
-        return offer
+        # send answer
+        answer = await pc.createAnswer()
+        await pc.setLocalDescription(answer)
 
-    async def handle_answer(self, answer: dict):
-        """
-        Handle WebRTC answer from portalbot_service and set it as the remote description.
-
-        Args:
-            answer: Dictionary containing the WebRTC answer from portalbot_service
-        """
-        if not self.peer_connection:
-            logger.error("Received WebRTC answer but no peer connection exists")
-            return
-
-        if not answer:
-            logger.error("Received WebRTC answer without answer data")
-            return
-
-        logger.info("Setting remote description with received WebRTC answer")
-        await self.peer_connection.setRemoteDescription(RTCSessionDescription(**answer))
+        self.peer_connection = pc
+        logger.info(f"Created WebRTC answer: {answer}")
+        return answer
 
     async def handle_ice_candidate(self, data: dict):
         """
@@ -143,13 +130,15 @@ class WebRTCPeer:
 
     async def process_video_track(self, track):
         """Process incoming video frames from WebRTC track."""
+        logger.info("Starting video track processing")
         frame_count = 0
         try:
             while not self.stopping:
-                self.remote_video_frame = await track.recv()
+                frame = await track.recv()
+                self.remote_video_frame = frame.to_ndarray(format="rgb24")
                 frame_count += 1
                 if (frame_count % 100) == 0:
-                    logger.info(f"Received 100 frames ({frame_count})")
+                    logger.debug(f"Received 100 frames ({frame_count})")
         except Exception as e:
             logger.error(f"Error processing video track: {e}")
 

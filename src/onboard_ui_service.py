@@ -56,6 +56,8 @@ def shutdown():
 
 def ui_loop():
     global running
+    global webrtc_peer
+
     """Run the pygame UI loop in the main thread"""
     clock = pygame.time.Clock()
 
@@ -99,19 +101,11 @@ async def health_check():
     return {"status": "healthy"}
 
 
-@app.get("/offer")
-async def create_webrtc_offer():
-    """Endpoint to create WebRTC offer"""
-    offer = await webrtc_peer.create_offer()
-    return {"sdp": offer.sdp, "type": offer.type}
-
-
-@app.post("/answer")
-async def receive_webrtc_answer(data: dict):
-    """Endpoint to receive WebRTC answer from portalbot_service"""
-    logger.info(f"Received WebRTC answer from portalbot service: {data}")
-    await webrtc_peer.handle_answer(data)
-    return {"status": "Answer received"}
+@app.post("/offer")
+async def create_webrtc_offer(data: dict):
+    """Endpoint to accept WebRTC offer"""
+    answer = await webrtc_peer.handle_offer(data)
+    return {"sdp": answer.sdp, "type": answer.type}
 
 
 @app.post("/ice_candidate")
@@ -139,7 +133,7 @@ if __name__ == "__main__":
         f"Starting Portalbot Onboard UI Service on port {port} in {'DEBUG' if debug else 'PRODUCTION'} mode"
     )
     uvicorn.run(
-        "onboard_ui_service:app",
+        app,
         host="0.0.0.0",
         port=port,
         log_level="debug" if debug else "info",

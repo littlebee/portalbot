@@ -136,10 +136,6 @@ class PortalbotService:
             vision_url, sender_id, offer, on_answer=self.handle_vision_answer
         )
 
-        # TODO: move this the request control flow instead of
-        # doing it for every offer?
-        await self.request_offer_from_ui()
-
     async def handle_vision_answer(self, url: str, sender_id: str, payload: dict):
         """Handle the answer from the vision service and send it to public server"""
 
@@ -157,6 +153,42 @@ class PortalbotService:
             logger.info(f"Received answer from {url}, sending to public server")
             await self.send_to_public_server(
                 "answer",
+                {
+                    "answer": answer,
+                    "sid": sender_id,
+                },
+            )
+        else:
+            logger.error(f"Answer from {url} missing 'sdp' field: {payload}")
+
+    async def handle_control_offer(self, data: dict):
+        """
+        Relay WebRTC offer to local onboard UI service and send answer back.
+
+        Args:
+            data: Dictionary containing the WebRTC offer from remote human
+        """
+        offer = data.get("offer")
+        sender_id = str(data.get("sid"))
+
+        if not offer:
+            logger.error("Received WebRTC offer without offer data")
+            return
+
+        ui_url = f"{self.config.onboard_ui_service_url}/offer"
+        await self.forward_offer(
+            ui_url, sender_id, offer, on_answer=self.handle_control_answer
+        )
+
+    async def handle_control_answer(self, url: str, sender_id: str, payload: dict):
+        """Handle the answer from the onboard UI service and send it to public server"""
+
+        logger.info(f"Received answer from {url}")
+        answer = payload.get("sdp")
+        if answer:
+            logger.info(f"Received answer from {url}, sending to public server")
+            await self.send_to_public_server(
+                "control_answer",
                 {
                     "answer": answer,
                     "sid": sender_id,
@@ -241,43 +273,6 @@ class PortalbotService:
         except Exception as e:
             logger.error(f"Error relaying WebRTC offer to {url}: {e}")
 
-    async def handle_control_answer(self, data: dict):
-        """
-        Forward control WebRTC answer to local onboard UI service.
-        """
-        answer = data.get("answer")
-
-        if not answer:
-            logger.error("Received control WebRTC answer without answer data")
-            return
-
-        url = f"{self.config.onboard_ui_service_url}/answer"
-        try:
-            if not self.http_session:
-                logger.error(
-                    "HTTP session not initialized, cannot relay WebRTC control answer"
-                )
-                return
-
-            payload = answer
-            logger.info(
-                f"Relaying control WebRTC answer to UI at {url} with payload: {payload}"
-            )
-            async with self.http_session.post(url, json=payload) as response:
-                if response.status == 200:
-                    result = await response.json()
-                    logger.info(f"Received control answer response from {url}")
-                    logger.debug(f"response: {result}")
-                else:
-                    logger.error(
-                        f"Service returned error from {url}: {response.status} - "
-                        f"{await response.text()}"
-                    )
-        except aiohttp.ClientError as e:
-            logger.error(f"Failed to connect to service at {url}: {e}")
-        except Exception as e:
-            logger.error(f"Error relaying WebRTC control answer to {url}: {e}")
-
     async def handle_webrtc_ice_candidate(self, data: dict):
         """
         Handle ICE candidate from remote peer.
@@ -350,9 +345,9 @@ class PortalbotService:
             # WebRTC offer from remote operator - relay to vision service
             await self.handle_webrtc_offer(data)
 
-        elif message_type == "control_answer":
-            # WebRTC answer from remote operator in response to control offer - relay to onboard UI service
-            await self.handle_control_answer(data)
+        elif message_type == "control_offer":
+            # WebRTC offer for control stream from remote operator - relay to onboard UI service
+            await self.handle_control_offer(data)
 
         elif message_type == "ice_candidate":
             # WebRTC ICE candidate from remote operator

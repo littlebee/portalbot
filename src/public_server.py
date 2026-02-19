@@ -133,6 +133,7 @@ async def handle_message(websocket: WebSocket, client_id: str, message: dict):
         "leave_space": handle_leave_space,
         "offer": webrtc_signaling.handle_offer,
         "answer": webrtc_signaling.handle_answer,
+        "control_offer": webrtc_signaling.handle_control_offer,
         "control_answer": webrtc_signaling.handle_control_answer,
         "ice_candidate": webrtc_signaling.handle_ice_candidate,
         "ping": handle_ping,

@@ -129,7 +129,7 @@ export class WebRTCPeer {
         return offer;
     }
 
-    private addLocalTracks() {
+    public addLocalTracks() {
         this.debug(`Adding local tracks to peer connection`);
         const pc = this._peerConnection;
         if (!pc) {

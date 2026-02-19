@@ -34,12 +34,32 @@ class WebRTCSignaling:
         offer = data.get("offer")
 
         if not space_name or not offer:
+            logger.error("Received offer without space name or offer data")
             return
 
         print(f"Forwarding offer in space: {space_name}")
         await self.space_manager.broadcast_to_space(
             space_name,
             "offer",
+            {"offer": offer, "sid": client_id},
+            exclude_client_id=client_id,
+        )
+
+    async def handle_control_offer(
+        self, websocket: WebSocket, client_id: str, data: dict
+    ):
+        """Forward WebRTC control offer to the other peer in the space"""
+        space_name = self.connection_manager.get_client_space(client_id)
+        offer = data.get("offer")
+
+        if not space_name or not offer:
+            logger.error("Received control offer without space name or offer data")
+            return
+
+        print(f"Forwarding control offer in space: {space_name}")
+        await self.space_manager.broadcast_to_space(
+            space_name,
+            "control_offer",
             {"offer": offer, "sid": client_id},
             exclude_client_id=client_id,
         )

@@ -12,7 +12,6 @@ import type {
     ErrorData,
     IceCandidateData,
     JoinSpaceData,
-    OfferData,
     UserJoinedData,
     UserLeftData,
     WebRTCMessage,
@@ -198,31 +197,25 @@ export function useWebRTC(): UseWebRTCReturn {
         }
     }, [currentSpace, sendMessage, showError]);
 
-    // When the robot grants us control, it will send an offer from the onboard ui,
-    // through the public server, that is handled here.  We answer that offer'
-    // with our av tracks (see also, createControlConnection).
-    //
-    const handleOffer = useCallback(
-        async (data: OfferData) => {
-            console.log(
-                "Received control offer from public server, creating control connection",
-            );
-            try {
-                const pc = await createControlConnection();
-                const answer = await pc.handleOffer(data);
+    // When we are granted control of the robot, we send an offer
+    // to onboard UI via the public server -> portalbot service -> onboard UI.
+    const sendControlOffer = useCallback(async () => {
+        const pc = createControlConnection();
+        try {
+            pc.localStream = _gLocalStream;
+            pc.addLocalTracks();
+            const offer = await pc.createOffer();
 
-                console.log("Sending control answer");
-                sendMessage("control_answer", {
-                    space: currentSpace,
-                    answer: answer,
-                });
-            } catch (err) {
-                console.error("Error handling offer:", err);
-                showError("Failed to handle connection offer");
-            }
-        },
-        [currentSpace, sendMessage, showError],
-    );
+            console.log("Sending control offer");
+            sendMessage("control_offer", {
+                space: currentSpace,
+                offer: offer,
+            });
+        } catch (err) {
+            console.error("Error creating control offer:", err);
+            showError("Failed to create control connection offer");
+        }
+    }, [currentSpace, sendMessage, showError]);
 
     // Handle answer
     const handleAnswer = useCallback(
@@ -235,6 +228,23 @@ export function useWebRTC(): UseWebRTCReturn {
                 }
             } catch (err) {
                 console.error("Error handling answer:", err);
+                showError("Failed to handle connection answer");
+            }
+        },
+        [showError],
+    );
+
+    // Handle answer
+    const handleControlAnswer = useCallback(
+        async (data: AnswerData) => {
+            console.log("Received control answer from public server: ", data);
+            try {
+                const pc = controlPeerConnectionRef.current;
+                if (pc) {
+                    await pc.handleAnswer(data);
+                }
+            } catch (err) {
+                console.error("Error handling controlanswer:", err);
                 showError("Failed to handle connection answer");
             }
         },
@@ -255,9 +265,11 @@ export function useWebRTC(): UseWebRTCReturn {
         async (data: JoinSpaceData) => {
             console.log("Joined space:", data);
             setCurrentSpace(data.space);
+            // TODO - run these in parallel and wait for both to complete
             await sendOffer();
+            await sendControlOffer();
         },
-        [sendOffer],
+        [sendOffer, sendControlOffer],
     );
 
     // IF the robot goes offline or leaves the space, we get notified here
@@ -266,8 +278,9 @@ export function useWebRTC(): UseWebRTCReturn {
         async (_data: UserJoinedData) => {
             console.log("Robot joined, starting WebRTC connection");
             await sendOffer();
+            await sendControlOffer();
         },
-        [sendOffer],
+        [sendOffer, sendControlOffer],
     );
 
     // Handle user left
@@ -311,12 +324,12 @@ export function useWebRTC(): UseWebRTCReturn {
                     handleRobotLeft(data as UserLeftData);
                     break;
 
-                case "offer":
-                    handleOffer(data as OfferData);
-                    break;
-
                 case "answer":
                     handleAnswer(data as AnswerData);
+                    break;
+
+                case "control_answer":
+                    handleControlAnswer(data as AnswerData);
                     break;
 
                 case "ice_candidate":
@@ -339,7 +352,7 @@ export function useWebRTC(): UseWebRTCReturn {
         [
             handleRobotJoined,
             handleRobotLeft,
-            handleOffer,
+            handleControlAnswer,
             handleAnswer,
             handleIceCandidate,
             showError,

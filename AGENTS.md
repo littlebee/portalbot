@@ -27,28 +27,10 @@ Portalbot is a robotics platform built on the `basic_bot` framework that enables
 ### Basic Bot Services
 The robot runs multiple services coordinated by basic_bot framework (defined in `basic_bot.yml`):
 - `central_hub`: Main service coordinator and message bus
-- `web_server`: Web interface for robot control
 - `vision`: Computer vision processing service
 - `system_stats`: System monitoring service
 - `portalbot`: Robot telepresence service (defined in basic_bot.yml)
 
-### Robot Authentication & Configuration
-- **Robot Configuration**: `portalbot_robot.yml` - Per-robot config file
-  - Contains robot_id, robot_name, space_id, secret_key_file path
-  - Each robot has unique credentials
-- **Space Configuration**: `portalbot_spaces.yml` - Defines available spaces
-  - Lists allowed robot_ids per space via `robot_ids` array
-  - Controls which robots can access which spaces
-- **Robot Secrets**: `robot_secrets/` directory
-  - Contains `<robot-id>.key` files (gitignored)
-  - Managed by `src/commons/robot_secrets.py` (RobotSecrets class)
-  - Loads secrets on server startup
-  - Secret keys never stored in version control
-- **Authentication Flow**:
-  1. Robot connects to public_server with WebSocket
-  2. Sends `robot_identify` message with robot_id, name, space, and secret_key
-  3. Server validates: space exists, robot_id in space's allowed list, secret_key matches
-  4. Robot registered and added to space
 
 ### Frontend (React)
 Location: `webapp/`
@@ -71,18 +53,15 @@ The webapp is currently a fresh TanStack template that will be used for the robo
 - **SSL/TLS**: Let's Encrypt certificates (auto-renewal enabled)
 - **Process Manager**: systemd (`portalbot.service` or `portalbot_public.service`)
 
-### Required Ports
-- 80, 443: HTTP/HTTPS
-- 22: SSH
-- 5080: FastAPI backend (internal)
-- 3478-3479, 5349: STUN/TURN server
-- 32355-65535: TURN ephemeral ports (UDP/TCP)
 
 ### Deployment Scripts
 - `./upload.sh <host> [target_dir]`: Upload code to remote server via rsync
 - `./start_public.sh`: Start the public signaling server
-- `./restart.sh`: Restart all services
-- `./start.sh`, `./stop.sh`: Start/stop basic_bot services
+- `./stop_public.sh`: Stop the public signaling server
+- `./restart_public.sh`: Restart the public signaling server
+- `./start_robot.sh`: Start the services that run locally on the robot
+- `./start_robot.sh`: Stop the services that run locally on the robot
+- `./start_robot.sh`: restart the services that run locally on the robot
 
 See `DEPLOYMENT.md` for complete deployment instructions.
 
@@ -112,6 +91,16 @@ npm run build        # Build for production
 npm run test         # Run tests
 npm run lint         # Lint code
 npm run format       # Format code
+```
+
+### upload files
+
+After building the webapp and linting the python, upload the files to EC2 and to a test robot. This requires that your public ssh keys are installed on the robot and EC2 instance.
+
+```bash
+./upload.sh ec2-3-134-87-34.us-east-2.compute.amazonaws.com
+./upload.sh pi5.local
+
 ```
 
 ## Code Quality & Testing
@@ -144,6 +133,7 @@ GitHub Actions workflow (`.github/workflows/ci.yml`):
 ├── src/
 │   ├── public_server.py          # FastAPI WebRTC signaling server
 │   ├── portalbot_service.py      # Robot-side telepresence service
+│   ├── onboard_ui_service.py     # Handles robots onboard display
 │   └── commons/
 │       ├── space_config.py       # Space configuration loader
 │       ├── robot_config.py       # Robot configuration loader
@@ -204,20 +194,8 @@ Excluded from git:
 ## Important Notes
 
 ### Robot Control Workflow
-The robot control flow follows this sequence:
-1. **Robot Joins**: Robot authenticates and joins its designated space
-2. **Human Joins**: Human joins same space, sees available robots
-3. **Control Request**: Human clicks "Teleport" button, sends `control_request` message
-4. **Validation**: Robot validates audio presence and face detection
-5. **Control Grant**: Robot sends `control_granted` message if validation passes
-6. **Active Control**: Human can send `remote_command` messages to robot
-7. **Release**: Either party can send `control_release` to end control session
 
-**WebSocket Message Types**:
-- Robot → Server: `robot_identify`, `control_granted`, `control_release`
-- Human → Server: `join_space`, `control_request`, `control_release`, `remote_command`
-- Server → Robot: `connected`, `joined_space`, `control_request`, `control_released`, `remote_command`
-- Server → Human: `connected`, `joined_space`, `robot_joined`, `control_granted`, `control_released`
+TBD
 
 ### Robot Secret Key Management
 - Generate new robot keys: `python -c "import secrets; print(secrets.token_urlsafe(32))" > robot_secrets/<robot-id>.key`
@@ -232,95 +210,14 @@ The robot control flow follows this sequence:
 - WebRTC implementation is pending (aiortc integration planned)
 
 ### Service Management
-Use `bb_start` and `bb_stop` commands (from basic_bot) to manage robot services:
+Can Use `bb_start` and `bb_stop` commands (from basic_bot) directly to manage robot services, but note that the `start_robot.sh` and `stop_robot.sh` also pass through all args to `bb_start` and `bb_stop`
 ```bash
 bb_start   # Start all services defined in basic_bot.yml
 bb_stop    # Stop all services
 ```
 
-### Environment Variables
-The public server uses these environment variables (optional):
-- `PORT`: Server port (default: 5080)
-- `DEBUG`: Enable debug mode (default: False)
-- `SECRET_KEY`: Flask secret key (generate with `secrets.token_hex(32)`)
+If a robot service get's hung up and refuses to shutdown normally (as can happen if you fail to stop a python thread), `bb_killall` command can be used to stop any and all processes created by bb_start regarless of where they were started.
 
-## Common Tasks
-
-### Running the Robot Service
-The robot service runs as part of basic_bot services:
-```bash
-# Start all services including portalbot
-bb_start
-
-# Or run portalbot service directly for testing
-python src/portalbot_service.py
-
-# View robot logs
-tail -f logs/portalbot.log
-```
-
-### Adding a New Robot
-1. Generate a secret key:
-   ```bash
-   python -c "import secrets; print(secrets.token_urlsafe(32))" > robot_secrets/robot-2.key
-   ```
-2. Add robot to space in `portalbot_spaces.yml`:
-   ```yaml
-   spaces:
-     - id: "robot-space"
-       robot_ids: ["robot-1", "robot-2"]  # Add robot-2
-   ```
-3. Create robot config file (or update `portalbot_robot.yml`):
-   ```yaml
-   robot_id: "robot-2"
-   robot_name: "Robot 2"
-   space_id: "robot-space"
-   secret_key_file: "./robot_secrets/robot-2.key"
-   ```
-
-### Adding a New Route (Frontend)
-Edit `webapp/src/main.tsx` and create a new route:
-```tsx
-const newRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/new-path",
-  component: YourComponent,
-});
-```
-
-### Debugging WebSocket Issues
-Check the connection flow:
-1. Client connects → receives `connected` message with `sid`
-2. Client sends `join_space` → receives `joined_space` with participant list
-3. Peer exchange: `offer` ↔ `answer` messages
-4. ICE candidates: `ice_candidate` messages for NAT traversal
-
-### Monitoring Production
-```bash
-# View logs
-sudo journalctl -u portalbot -f
-
-# Check service status
-sudo systemctl status portalbot
-
-# Restart service
-sudo systemctl restart portalbot
-
-# View nginx logs
-sudo tail -f /var/log/nginx/access.log
-sudo tail -f /var/log/nginx/error.log
-```
-
-## Repository Information
-- **Current Branch**: bee/portalbot_service
-- **Main Branch**: Not configured (use default branch for PRs)
-- **Recent Work**:
-  - Implemented portalbot_service.py (robot-side telepresence service)
-  - Created secure file-based robot authentication system
-  - Added robot configuration management (robot_config.py, robot_secrets.py)
-  - Implemented control workflow (request/grant/release)
-  - Enhanced public_server.py with robot/human differentiation
-  - All code passes flake8 and mypy linting
 
 ## Development Notes
 - Use Black formatter for all Python code
