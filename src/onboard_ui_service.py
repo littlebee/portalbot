@@ -16,6 +16,7 @@ person granted control of the robot is shown.
 import sys
 from pathlib import Path
 import threading
+from contextlib import asynccontextmanager
 from typing import Optional
 
 from fastapi import FastAPI
@@ -38,10 +39,26 @@ logger = get_logger("onboard_ui_service")
 running = True
 ui_worker: Optional[threading.Thread] = None
 
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    """Manage UI worker lifecycle for FastAPI startup/shutdown."""
+    global ui_worker
+    if not (ui_worker and ui_worker.is_alive()):
+        logger.info("Starting ui thread")
+        ui_worker = threading.Thread(target=ui_thread, daemon=True)
+        ui_worker.start()
+    try:
+        yield
+    finally:
+        shutdown()
+        if ui_worker and ui_worker.is_alive():
+            ui_worker.join(timeout=2)
+
 app = FastAPI(
     title="Portalbot Onboard UI Service",
     description="Real-time signaling server for WebRTC video chat using native WebSockets",
     version="3.0.0",
+    lifespan=lifespan,
 )
 
 face_cascade = load_face_detector()
@@ -93,25 +110,6 @@ def ui_thread():
         shutdown()
     finally:
         logger.info("Shutdown complete")
-
-
-@app.on_event("startup")
-async def startup_event():
-    """Start the UI worker thread when the service starts."""
-    global ui_worker
-    if ui_worker and ui_worker.is_alive():
-        return
-    logger.info("Starting ui thread")
-    ui_worker = threading.Thread(target=ui_thread, daemon=True)
-    ui_worker.start()
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Ensure the UI worker and WebRTC resources are stopped."""
-    shutdown()
-    if ui_worker and ui_worker.is_alive():
-        ui_worker.join(timeout=2)
 
 
 @app.get("/health")
