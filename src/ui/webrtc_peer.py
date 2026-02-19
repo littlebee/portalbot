@@ -140,7 +140,9 @@ class WebRTCPeer:
         try:
             while not self.stopping:
                 frame = await track.recv()
-                self.remote_video_frame = frame.to_ndarray(format="rgb24")
+                # Keep the source pixel format (typically yuv420p) and convert
+                # inside RobotDisplay to avoid swscale rgb24/bgr24 warnings.
+                self.remote_video_frame = frame.to_ndarray()
                 frame_count += 1
                 if (frame_count % 100) == 0:
                     logger.debug(f"Received 100 frames ({frame_count})")

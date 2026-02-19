@@ -107,14 +107,16 @@ class RobotDisplay:
             return
 
         try:
+            rgb_frame = self.normalize_to_rgb(frame)
+
             # Detect and extract the largest face
-            face_frame = self.extract_largest_face(frame)
+            face_frame = self.extract_largest_face(rgb_frame)
 
             if face_frame is not None:
                 display_frame = face_frame
             else:
                 # No face detected, show full frame
-                display_frame = frame
+                display_frame = rgb_frame
 
             # Resize to fit display (square)
             display_frame = cv2.resize(
@@ -132,6 +134,21 @@ class RobotDisplay:
         except Exception as e:
             logger.error(f"Error drawing remote video: {e}")
 
+    def normalize_to_rgb(self, frame: np.ndarray) -> np.ndarray:
+        """Normalize incoming frame formats to RGB for rendering and detection."""
+        if frame is None:
+            raise ValueError("Frame is None")
+
+        # aiortc/pyav yuv420p frame layout as a single 2D array.
+        if frame.ndim == 2:
+            return cv2.cvtColor(frame, cv2.COLOR_YUV2RGB_I420)
+
+        # 3-channel arrays are treated as already displayable RGB.
+        if frame.ndim == 3 and frame.shape[2] == 3:
+            return frame
+
+        raise ValueError(f"Unsupported frame shape: {frame.shape}")
+
     def extract_largest_face(self, frame: np.ndarray) -> Optional[np.ndarray]:
         """
         Extract the largest detected face from the frame.
@@ -142,7 +159,7 @@ class RobotDisplay:
 
         try:
             # Convert to grayscale for detection
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
 
             # Detect faces
             faces = self.face_cascade.detectMultiScale(
@@ -177,7 +194,7 @@ class RobotDisplay:
             return True
 
         try:
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
             faces = self.face_cascade.detectMultiScale(
                 gray, scaleFactor=1.1, minNeighbors=5, minSize=(100, 100)
             )
