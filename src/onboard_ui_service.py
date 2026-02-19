@@ -56,7 +56,6 @@ def shutdown():
 
 def ui_loop():
     global running
-    global webrtc_peer
 
     """Run the pygame UI loop in the main thread"""
     clock = pygame.time.Clock()
