@@ -16,9 +16,11 @@ person granted control of the robot is shown.
 import sys
 from pathlib import Path
 import threading
+from typing import Optional
 
 from fastapi import FastAPI
 import pygame
+from basic_bot.commons import constants as c
 
 # Add project root to Python path
 project_root = Path(__file__).parent.parent
@@ -34,6 +36,7 @@ from src.commons.logger_utils import get_logger
 logger = get_logger("onboard_ui_service")
 
 running = True
+ui_worker: Optional[threading.Thread] = None
 
 app = FastAPI(
     title="Portalbot Onboard UI Service",
@@ -56,8 +59,7 @@ def shutdown():
 
 def ui_loop():
     global running
-
-    """Run the pygame UI loop in the main thread"""
+    """Run the pygame UI loop."""
     clock = pygame.time.Clock()
 
     while running:
@@ -82,16 +84,34 @@ def ui_thread():
     global running
     running = True
 
-    # Initialize pygame in main thread
+    # Initialize pygame in this worker thread
     display.init_pygame("Portalbot Onboard UI")
     try:
-        # Run UI loop in main thread (pygame requirement)
         ui_loop()
     except KeyboardInterrupt:
         logger.info("Shutting down...")
         shutdown()
     finally:
         logger.info("Shutdown complete")
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Start the UI worker thread when the service starts."""
+    global ui_worker
+    if ui_worker and ui_worker.is_alive():
+        return
+    logger.info("Starting ui thread")
+    ui_worker = threading.Thread(target=ui_thread, daemon=True)
+    ui_worker.start()
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Ensure the UI worker and WebRTC resources are stopped."""
+    shutdown()
+    if ui_worker and ui_worker.is_alive():
+        ui_worker.join(timeout=2)
 
 
 @app.get("/health")
@@ -119,11 +139,7 @@ if __name__ == "__main__":
     import uvicorn
 
     port = PB_ONBOARD_UI_PORT
-    debug = True  # BB_ENV != "production"
-
-    logger.info("Starting ui thread")
-    thread = threading.Thread(target=ui_thread)
-    thread.start()
+    debug = c.BB_ENV != "production"
 
     print(f"Starting onboard UI service on port {port}")
     print(f"Server running in {'DEBUG' if debug else 'PRODUCTION'} mode")

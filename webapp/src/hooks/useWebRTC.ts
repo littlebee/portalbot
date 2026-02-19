@@ -521,6 +521,12 @@ export function useWebRTC(): UseWebRTCReturn {
 
             if (viewPeerConnectionRef.current) {
                 viewPeerConnectionRef.current.close();
+                viewPeerConnectionRef.current = null;
+            }
+
+            if (controlPeerConnectionRef.current) {
+                controlPeerConnectionRef.current.close();
+                controlPeerConnectionRef.current = null;
             }
 
             if (localStream) {

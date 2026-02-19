@@ -57,6 +57,8 @@ class WebRTCSignaling:
             return
 
         print(f"Forwarding control offer in space: {space_name}")
+        # TODO(#12): Route control offer only to the robot currently selected for
+        # control handoff instead of broadcasting to all participants.
         await self.space_manager.broadcast_to_space(
             space_name,
             "control_offer",
@@ -74,8 +76,8 @@ class WebRTCSignaling:
             return
 
         print(f"Forwarding answer in space: {space_name}")
-        # TODO : this should only be sent to the peer that sent the offer,
-        # not broadcast to the whole space
+        # TODO(#12): Send answer only to the original offer sender once
+        # targeted routing is implemented for control/view signaling.
         await self.space_manager.broadcast_to_space(
             space_name,
             "answer",
@@ -100,8 +102,8 @@ class WebRTCSignaling:
             return
 
         print(f"Forwarding answer in space: {space_name}")
-        # TODO : this should only be sent to the peer that sent the offer,
-        # not broadcast to the whole space
+        # TODO(#12): Route control answer only to the controlling browser instead
+        # of broadcasting to the whole space.
         await self.space_manager.broadcast_to_space(
             space_name,
             "control_answer",

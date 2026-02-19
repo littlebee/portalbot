@@ -43,7 +43,12 @@ class WebRTCPeer:
     def full_stop(self):
         """Completely stop the peer connection and clean up resources"""
         self.stopping = True
-        self.close_peer_connection()
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(self.close_peer_connection())
+        except RuntimeError:
+            if self.peer_connection:
+                asyncio.run(self.close_peer_connection())
 
     async def close_peer_connection(self):
         """Close the current peer connection but keep the option to create a new one later"""

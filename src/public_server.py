@@ -29,7 +29,7 @@ from src.commons.space_config import (
     load_spaces_config,
     SpacesConfiguration,
 )
-from src.commons.robot_secrets import (  # noqa: E402
+from src.commons.robot_secrets import (
     init_robot_secrets,
     RobotSecrets,
 )
@@ -124,8 +124,12 @@ async def handle_leave_space(websocket: WebSocket, client_id: str, data: dict):
 
 async def handle_message(websocket: WebSocket, client_id: str, message: dict):
     """Route incoming messages to appropriate handlers"""
-    logger.info(f"Received wss message from {client_id}: {message}")
     message_type: str = str(message.get("type"))
+    logger.debug(
+        "Received wss message from %s with type=%s",
+        client_id,
+        message_type,
+    )
     data = message.get("data", {})
 
     handlers = {

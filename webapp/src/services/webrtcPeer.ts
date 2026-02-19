@@ -63,7 +63,7 @@ export class WebRTCPeer {
             this.debug("Received remote track");
             if (!this._onRemoteStream) {
                 this.debug(
-                    "Recieved remote track but no onRemoteStream passed in constructor",
+                    "Received remote track but no onRemoteStream passed in constructor",
                 );
                 return;
             }
@@ -226,6 +226,6 @@ export class WebRTCPeer {
     }
 
     private error(message: string, ...args: Array<any>) {
-        this.error(`${this.getLogPrefix()} ERROR: ${message}`, ...args);
+        console.error(`${this.getLogPrefix()} ERROR: ${message}`, ...args);
     }
 }

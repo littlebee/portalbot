@@ -116,9 +116,6 @@ class RobotDisplay:
                 # No face detected, show full frame
                 display_frame = frame
 
-            # Convert BGR to RGB
-            display_frame = cv2.cvtColor(display_frame, cv2.COLOR_BGR2RGB)
-
             # Resize to fit display (square)
             display_frame = cv2.resize(
                 display_frame, (self.display_size, self.display_size)
