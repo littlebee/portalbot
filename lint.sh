@@ -9,3 +9,7 @@ python -m flake8 src
 echo "Running mypy (Python typechecker): $(python -m mypy --version)"
 python -m mypy src
 
+echo "Running webapp linter"
+cd webapp
+npm install
+npm run lint
