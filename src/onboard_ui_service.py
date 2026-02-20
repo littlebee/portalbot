@@ -39,6 +39,7 @@ logger = get_logger("onboard_ui_service")
 running = True
 ui_worker: Optional[threading.Thread] = None
 
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     """Manage UI worker lifecycle for FastAPI startup/shutdown."""
@@ -53,6 +54,7 @@ async def lifespan(_app: FastAPI):
         shutdown()
         if ui_worker and ui_worker.is_alive():
             ui_worker.join(timeout=2)
+
 
 app = FastAPI(
     title="Portalbot Onboard UI Service",
