@@ -12,13 +12,16 @@ from typing import List, Optional
 import yaml
 from pydantic import BaseModel, Field, field_validator
 from basic_bot.commons.constants import BB_VISION_PORT
+from src.commons.constants import PB_ONBOARD_UI_PORT
 
 
 class IceServer(BaseModel):
     """ICE server configuration for WebRTC NAT traversal"""
 
     urls: str = Field(..., description="STUN/TURN server URL")
-    username: Optional[str] = Field(None, description="Username for TURN authentication")
+    username: Optional[str] = Field(
+        None, description="Username for TURN authentication"
+    )
     credential: Optional[str] = Field(
         None, description="Password for TURN authentication"
     )
@@ -44,9 +47,15 @@ class RobotConfig(BaseModel):
         default_factory=lambda: f"http://localhost:{BB_VISION_PORT}",
         description="URL of the basic_bot vision service for WebRTC relay",
     )
+    onboard_ui_service_url: str = Field(
+        default_factory=lambda: f"http://localhost:{PB_ONBOARD_UI_PORT}",
+        description="URL of the basic_bot onboard UI service",
+    )
     ice_servers: List[IceServer] = Field(
         default_factory=lambda: [
-            IceServer(urls="stun:stun.l.google.com:19302", username=None, credential=None),
+            IceServer(
+                urls="stun:stun.l.google.com:19302", username=None, credential=None
+            ),
             IceServer(
                 urls="turn:ec2-3-134-87-34.us-east-2.compute.amazonaws.com:3478",
                 username="user",

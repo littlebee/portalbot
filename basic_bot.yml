@@ -35,5 +35,8 @@ services:
   - name: "system_stats"
     run: "python -m basic_bot.services.system_stats"
 
+  - name: "onboard_ui"
+    run: "python src/onboard_ui_service.py"
+
   - name: "portalbot"
     run: "python src/portalbot_service.py"

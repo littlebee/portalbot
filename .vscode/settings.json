@@ -3,15 +3,19 @@
     "cSpell.enabled": true,
     "cSpell.words": [
         "aiortc",
+        "connectionstatechange",
         "frontalface",
         "haarcascade",
         "haarcascades",
         "levelname",
         "mypy",
         "ndarray",
+        "onboardui",
         "Portalbot",
         "pydantic",
         "pydub",
+        "readonlypeer",
+        "samplerate",
         "sounddevice",
         "webrtc"
     ]

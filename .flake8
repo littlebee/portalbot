@@ -17,4 +17,6 @@ extend-ignore =
 ; bare exception
   E722,
 ; unused args - I think callbacks will fail if their positional args are not present
-  U100
+  U100,
+; imports not at top of file (we have some in the middle for dynamic config reasons)
+  E402

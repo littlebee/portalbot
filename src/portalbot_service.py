@@ -2,16 +2,14 @@
 """
 This service provides
 
-- The onboard UI for the robot.  It displays everything seen on 1080x1080.
 - A secure, authenticated WebSocket connection to the public_server.
 - A WebRTC audio/video relay from basic_bot.services.vision to the public_server.
 - A means for public_server to send remote control commands to the robot; relayed
   to basic_bot.services.central_hub
 
-It uses pygame for rendering the UI and handling touch input.
 - When a person requests and is granted control, a live audio/video feed of the
-person granted control of the robot is shown.
-- When no one has control, the UI displays an animation of the robot's eyes.
+person granted control of the robot is forwarded to the /offer endpoint of the
+onboardui_service.
 
 The service connects to the public_server via a secure WebSocket connection.
 The robot identifies itself to public_server via the `join_space` websocket
@@ -27,16 +25,12 @@ a local websocket connection.
 """
 
 import asyncio
-import logging
 import sys
 import threading
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Callable
 
 import aiohttp
-import cv2
-import numpy as np
-import pygame
 from websockets.client import WebSocketClientProtocol
 
 # Add project root to Python path
@@ -51,16 +45,12 @@ from src.commons.control_state_manager import (  # noqa: E402
 from src.commons.portalbot_websocket_client import (  # noqa: E402
     PortalbotWebSocketClient,
 )
-from src.ui.robot_display import RobotDisplay  # noqa: E402
+from src.commons.logger_utils import get_logger
 from basic_bot.commons.hub_state import HubState  # noqa: E402
 from basic_bot.commons.hub_state_monitor import HubStateMonitor  # noqa: E402
 from basic_bot.commons import messages  # noqa: E402
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
-logger = logging.getLogger(__name__)
+logger = get_logger("portalbot_service")
 
 
 class PortalbotService:
@@ -98,12 +88,6 @@ class PortalbotService:
             on_relay_command=self.relay_command_to_hub,
         )
 
-        # Initialize display
-        face_cascade = self._load_face_detector()
-        self.display = RobotDisplay(
-            display_size=self.config.display_size, face_cascade=face_cascade
-        )
-
         # Initialize WebSocket client
         self.ws_client = PortalbotWebSocketClient(
             server_url=self.config.public_server_url,
@@ -118,30 +102,8 @@ class PortalbotService:
         self.hub_state = HubState()
         self.hub_monitor: Optional[HubStateMonitor] = None
 
-        # Video frame buffers
-        self.remote_video_frame: Optional[np.ndarray] = None
-        self.robot_video_frame: Optional[np.ndarray] = None
-
         # HTTP client for WebRTC relay to vision service
         self.http_session: Optional[aiohttp.ClientSession] = None
-
-    def _load_face_detector(self):
-        """Load OpenCV face detector"""
-        try:
-            # TODO: I think this requires opencv-contrib-python to be installed as
-            # opposed to just opencv-python, verify and document installation steps.
-            # Try to load Haar Cascade for face detection
-            cascade_path = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"  # type: ignore
-            face_cascade = cv2.CascadeClassifier(cascade_path)
-            if face_cascade.empty():
-                logger.warning("Failed to load face cascade classifier")
-                return None
-            else:
-                logger.info("Face detector loaded successfully")
-                return face_cascade
-        except Exception as e:
-            logger.warning(f"Could not load face detector: {e}")
-            return None
 
     async def send_to_public_server(self, message_type: str, data: dict):
         """Send a message to the public server"""
@@ -169,56 +131,147 @@ class PortalbotService:
             logger.error("Received WebRTC offer without offer data")
             return
 
-        if not self.http_session:
-            logger.error("HTTP session not initialized, cannot relay WebRTC offer")
+        vision_url = f"{self.config.vision_service_url}/offer"
+        await self.forward_offer(
+            vision_url, sender_id, offer, on_answer=self.handle_vision_answer
+        )
+
+    async def handle_vision_answer(self, url: str, sender_id: str, payload: dict):
+        """Handle the answer from the vision service and send it to public server"""
+
+        logger.info(f"Received answer from {url}")
+
+        answer = payload.get("sdp")
+        client_id = payload.get("client_id")
+        if client_id:
+            self.sender_to_client_id_map[sender_id] = client_id
+            logger.debug(
+                f"Mapped sender ID {sender_id} to vision client ID {client_id}"
+            )
+
+        if answer:
+            logger.info(f"Received answer from {url}, sending to public server")
+            await self.send_to_public_server(
+                "answer",
+                {
+                    "answer": answer,
+                    "sid": sender_id,
+                },
+            )
+        else:
+            logger.error(f"Answer from {url} missing 'sdp' field: {payload}")
+
+    async def handle_control_offer(self, data: dict):
+        """
+        Relay WebRTC offer to local onboard UI service and send answer back.
+
+        Args:
+            data: Dictionary containing the WebRTC offer from remote human
+        """
+        offer = data.get("offer")
+        sender_id = str(data.get("sid"))
+
+        if not offer:
+            logger.error("Received WebRTC offer without offer data")
             return
 
-        logger.info(f"Relaying WebRTC offer from {sender_id} to vision service")
+        ui_url = f"{self.config.onboard_ui_service_url}/offer"
+        await self.forward_offer(
+            ui_url, sender_id, offer, on_answer=self.handle_control_answer
+        )
+
+    async def handle_control_answer(self, url: str, sender_id: str, payload: dict):
+        """Handle the answer from the onboard UI service and send it to public server"""
+
+        logger.info(f"Received answer from {url}")
+        answer = payload.get("sdp")
+        if answer:
+            logger.info(f"Received answer from {url}, sending to public server")
+            await self.send_to_public_server(
+                "control_answer",
+                {
+                    "answer": answer,
+                    "sid": sender_id,
+                },
+            )
+        else:
+            logger.error(f"Answer from {url} missing 'sdp' field: {payload}")
+
+    async def forward_offer(
+        self,
+        url: str,
+        sender_id: str,
+        offer: str,
+        on_answer: Optional[Callable] = None,
+    ):
+        """
+        Async function to forward the WebRTC offer to the vision or
+        onboard UI service and returns the answer to caller.
+
+        :param url: Description
+        :type url: str
+        :param offer: Description
+        :type offer: str
+        """
+        logger.info(f"Relaying WebRTC offer from {sender_id} to {url}")
 
         try:
-            # POST offer to vision service with ICE server configuration
-            vision_url = f"{self.config.vision_service_url}/offer"
+            if not self.http_session:
+                logger.error("HTTP session not initialized, cannot relay WebRTC offer")
+                return
 
-            # payload = {
-            #     "offer": offer,
-            #     "ice_servers": ice_servers,
-            # }
             payload = offer
-
-            async with self.http_session.post(vision_url, json=payload) as response:
+            async with self.http_session.post(url, json=payload) as response:
                 if response.status == 200:
                     result = await response.json()
-                    logger.info(f"Received offer response: {result}")
+                    logger.info(f"Received offer response from {url}")
 
-                    answer = result.get("sdp")
-                    client_id = result.get("client_id")
-                    if client_id:
-                        self.sender_to_client_id_map[sender_id] = client_id
-                        logger.debug(
-                            f"Mapped sender ID {sender_id} to vision client ID {client_id}"
-                        )
+                    if on_answer:
+                        await on_answer(url, sender_id, result)
                     else:
-                        logger.error("Vision service response missing client_id field")
-
-                    if answer:
-                        logger.info(
-                            "Received answer from vision service, sending to public server"
+                        logger.error(
+                            f"Service response missing answer field from {url}"
                         )
-                        # Send answer back to public server
-                        await self.send_to_public_server(
-                            "answer", {"answer": answer, "to": sender_id}
-                        )
-                    else:
-                        logger.error("Vision service response missing answer field")
                 else:
                     logger.error(
-                        f"Vision service returned error: {response.status} - "
+                        f"Service returned error from {url}: {response.status} - "
                         f"{await response.text()}"
                     )
         except aiohttp.ClientError as e:
-            logger.error(f"Failed to connect to vision service: {e}")
+            logger.error(f"Failed to connect to service at {url}: {e}")
         except Exception as e:
-            logger.error(f"Error relaying WebRTC offer: {e}")
+            logger.error(f"Error relaying WebRTC offer to {url}: {e}")
+
+    async def request_offer_from_ui(
+        self,
+    ):
+        """
+        Async function to request an offer from the onboard ui REST
+        api and then send the offer to via the 'offer' web socket
+        message.
+        """
+        logger.info("Requesting WebRTC offer from UI")
+        url = f"{self.config.onboard_ui_service_url}/offer"
+
+        try:
+            if not self.http_session:
+                logger.error("HTTP session not initialized, cannot relay WebRTC offer")
+                return
+
+            async with self.http_session.get(url) as response:
+                if response.status == 200:
+                    result = await response.json()
+                    logger.info(f"Received ui offer response from {url}")
+                    await self.send_to_public_server("offer", {"offer": result})
+                else:
+                    logger.error(
+                        f"Service returned error from {url}: {response.status} - "
+                        f"{await response.text()}"
+                    )
+        except aiohttp.ClientError as e:
+            logger.error(f"Failed to connect to service at {url}: {e}")
+        except Exception as e:
+            logger.error(f"Error relaying WebRTC offer to {url}: {e}")
 
     async def handle_webrtc_ice_candidate(self, data: dict):
         """
@@ -242,28 +295,33 @@ class PortalbotService:
             )
             return
 
-        try:
-            # POST offer to vision service with ICE server configuration
-            vision_url = f"{self.config.vision_service_url}/ice_candidate"
+        # POST offer to vision service with ICE server configuration
+        vision_url = f"{self.config.vision_service_url}/ice_candidate"
+        ui_url = f"{self.config.onboard_ui_service_url}/ice_candidate"
 
-            payload = {
-                "candidate": candidate,
-                "client_id": client_id,
-            }
+        payload = {
+            "candidate": candidate,
+            "client_id": client_id,
+        }
 
-            async with self.http_session.post(vision_url, json=payload) as response:
-                if response.status == 200:
-                    result = await response.json()
-                    logger.info(f"Received ICE candidate response: {result}")
-                else:
-                    logger.error(
-                        f"Vision service returned error: {response.status} - "
-                        f"{await response.text()}"
-                    )
-        except aiohttp.ClientError as e:
-            logger.error(f"Failed to connect to vision service: {e}")
-        except Exception as e:
-            logger.error(f"Error relaying WebRTC ice candidate: {e}")
+        for url in [vision_url, ui_url]:
+            try:
+                logger.debug(f"Relaying ICE candidate from {sender_id} to {url}")
+                async with self.http_session.post(url, json=payload) as response:
+                    if response.status == 200:
+                        result = await response.json()
+                        logger.debug(
+                            f"Received ICE candidate response from {url}: {result}"
+                        )
+                    else:
+                        logger.error(
+                            f"Service error from {url}: {response.status} - "
+                            f"{await response.text()}"
+                        )
+            except aiohttp.ClientError as e:
+                logger.error(f"ClientError while relaying ICE candidate to {url}: {e}")
+            except Exception as e:
+                logger.error(f"Error relaying WebRTC ice candidate to {url}: {e}")
 
     async def handle_websocket_message(self, message_type: str, data: dict):
         """Handle messages from the public server"""
@@ -287,6 +345,10 @@ class PortalbotService:
             # WebRTC offer from remote operator - relay to vision service
             await self.handle_webrtc_offer(data)
 
+        elif message_type == "control_offer":
+            # WebRTC offer for control stream from remote operator - relay to onboard UI service
+            await self.handle_control_offer(data)
+
         elif message_type == "ice_candidate":
             # WebRTC ICE candidate from remote operator
             await self.handle_webrtc_ice_candidate(data)
@@ -307,31 +369,6 @@ class PortalbotService:
             # Store the latest frame from the robot's camera
             # In a real implementation, this would be sent via WebRTC
             self.robot_video_frame = msg_data["vision_frame"]
-
-    def ui_loop(self):
-        """Run the pygame UI loop in the main thread"""
-        clock = pygame.time.Clock()
-
-        while self.running:
-            # Handle pygame events
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    self.running = False
-                elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_ESCAPE:
-                        self.running = False
-
-            # Update display based on control state
-            if (
-                self.control_manager.is_controlled()
-                and self.remote_video_frame is not None
-            ):
-                self.display.draw_remote_video(self.remote_video_frame)
-            else:
-                self.display.draw_robot_eyes()
-
-            # Limit framerate
-            clock.tick(30)  # 30 FPS
 
     async def async_main(self):
         """Main async loop"""
@@ -365,17 +402,15 @@ class PortalbotService:
         """Main entry point"""
         self.running = True
 
-        # Initialize pygame in main thread
-        self.display.init_pygame(f"Portalbot - {self.config.robot_name}")
-
         # Start async loop in a separate thread
         async_thread = threading.Thread(target=lambda: asyncio.run(self.async_main()))
         async_thread.daemon = True
         async_thread.start()
 
         try:
-            # Run UI loop in main thread (pygame requirement)
-            self.ui_loop()
+            while self.running:
+                # Main thread can be used for other tasks if needed
+                async_thread.join(1)
         except KeyboardInterrupt:
             logger.info("Shutting down...")
         finally:
@@ -383,7 +418,6 @@ class PortalbotService:
             if self.hub_monitor:
                 self.hub_monitor.stop()
             self.ws_client.stop()
-            self.display.cleanup()
             logger.info("Shutdown complete")
 
 

@@ -11,51 +11,47 @@ import VideoSection from "@/components/VideoSection";
 import { useWebRTC } from "@/hooks/useWebRTC";
 
 function App() {
-  const webrtc = useWebRTC();
+    const webrtc = useWebRTC();
 
-  return (
-    <div className={styles.container}>
-      <header className={styles.header}>
-        <h1 className={styles.title}>Portalbot</h1>
-        <p className={styles.subtitle}>
-          Secure Video Chat with TURN Server Support
-        </p>
-      </header>
+    return (
+        <div className={styles.container}>
+            <header className={styles.header}>
+                <h1 className={styles.title}>Portalbot</h1>
+                <p className={styles.subtitle}>
+                    Secure Video Chat with TURN Server Support
+                </p>
+            </header>
 
-      <StatusBar
-        status={webrtc.connectionStatus}
-        statusText={webrtc.statusText}
-        spaceName={webrtc.currentSpace}
-      />
+            <StatusBar
+                status={webrtc.connectionStatus}
+                statusText={webrtc.statusText}
+                spaceName={webrtc.currentSpace}
+            />
 
-      {!webrtc.currentSpace ? (
-        <JoinSpace onJoin={webrtc.joinSpace} />
-      ) : (
-        <>
-          <VideoSection
-            localStream={webrtc.localStream}
-            remoteStream={webrtc.remoteStream}
-            onToggleAudio={webrtc.toggleAudio}
-            onToggleVideo={webrtc.toggleVideo}
-            onLeave={webrtc.leaveSpace}
-            isAudioEnabled={webrtc.isAudioEnabled}
-            isVideoEnabled={webrtc.isVideoEnabled}
-            connectionState={webrtc.connectionState}
-          />
+            {!webrtc.currentSpace ? (
+                <JoinSpace onJoin={webrtc.joinSpace} />
+            ) : (
+                <>
+                    <VideoSection
+                        localStream={webrtc.localStream}
+                        remoteStream={webrtc.remoteStream}
+                        onToggleAudio={webrtc.toggleAudio}
+                        onToggleVideo={webrtc.toggleVideo}
+                        onLeave={webrtc.leaveSpace}
+                        isAudioEnabled={webrtc.isAudioEnabled}
+                        isVideoEnabled={webrtc.isVideoEnabled}
+                        connectionStatus={webrtc.connectionStatus}
+                    />
 
-          <DebugInfo
-            connectionState={webrtc.connectionState}
-            iceState={webrtc.iceState}
-            signalingState={webrtc.signalingState}
-          />
-        </>
-      )}
+                    <DebugInfo connectionStatus={webrtc.connectionStatus} />
+                </>
+            )}
 
-      {webrtc.error && (
-        <div className={styles.errorMessage}>{webrtc.error}</div>
-      )}
-    </div>
-  );
+            {webrtc.error && (
+                <div className={styles.errorMessage}>{webrtc.error}</div>
+            )}
+        </div>
+    );
 }
 
 export default App;
