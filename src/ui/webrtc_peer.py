@@ -17,7 +17,7 @@ person granted control of the robot is shown.
 import asyncio
 from typing import Optional
 
-from aiortc import RTCIceCandidate, RTCPeerConnection, RTCSessionDescription
+from aiortc import RTCIceCandidate, RTCPeerConnection, RTCSessionDescription  # type: ignore[import-not-found]
 import numpy as np
 
 from src.commons.audio_stream_player import AudioStreamPlayer

@@ -211,19 +211,19 @@ class RobotControlHandler:
             return
 
         self.connection_manager.register_human(client_id)
-        queue = self.control_queues.get(space_id)
-        if queue and client_id in queue:
+        pending_queue = self.control_queues.get(space_id)
+        if pending_queue and client_id in pending_queue:
             await self.connection_manager.send_message(
                 websocket,
                 "control_pending",
-                {"position": list(queue).index(client_id) + 1},
+                {"position": list(pending_queue).index(client_id) + 1},
             )
             return
 
         current_controller_id = self.connection_manager.get_robot_controller(robot_id)
         print(f"Human {client_id} requesting control of robot {robot_id}")
 
-        if current_controller_id is None and not queue:
+        if current_controller_id is None and not pending_queue:
             await self._grant_control(robot_id, client_id)
             return
 
