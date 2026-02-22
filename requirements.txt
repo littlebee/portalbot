@@ -2,7 +2,7 @@ git+https://github.com/littlebee/basic_bot.git@main
 
 aiohttp
 aiohttp-cors
-aiortc
+aiortc>=1.11.0
 cffi
 opencv-python
 pycparser
