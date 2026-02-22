@@ -35,7 +35,7 @@ jobs:
           pip install --upgrade pip
           pip install pytest
           pip install git+https://github.com/littlebee/basic_bot.git@main
-          pip install -r requirements.txt
+          pip install -r requirements_CI.txt
 
       - name: Make .sh executable
         run: chmod +x ./*.sh
