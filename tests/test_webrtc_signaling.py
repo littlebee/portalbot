@@ -64,6 +64,23 @@ def test_control_offer_requires_active_controller():
     assert connection_manager.sent_to_websocket[-1][1] == "error"
 
 
+def test_control_offer_without_robot_returns_error():
+    signaling, connection_manager = build_signaling()
+    connection_manager.robot_clients = {}
+
+    websocket = object()
+    asyncio.run(
+        signaling.handle_control_offer(
+            websocket,
+            "human-1",
+            {"offer": {"type": "offer", "sdp": "fake"}},
+        )
+    )
+
+    assert connection_manager.sent_to_client == []
+    assert connection_manager.sent_to_websocket[-1][1] == "error"
+
+
 def test_control_offer_routes_only_to_robot():
     signaling, connection_manager = build_signaling()
 

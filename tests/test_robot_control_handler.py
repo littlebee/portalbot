@@ -56,6 +56,15 @@ class FakeSpaceManager:
     pass
 
 
+class FakeSpacesConfig:
+    def get_space_by_id(self, space_id):
+        return None
+
+
+class FakeRobotSecrets:
+    pass
+
+
 def build_handler():
     connection_manager = FakeConnectionManager()
     handler = RobotControlHandler(
@@ -78,6 +87,17 @@ def build_handler():
         connection_manager.client_websockets[human_id] = object()
 
     return handler, connection_manager, robot_client_id
+
+
+def test_control_request_when_robot_offline_returns_pending_not_error():
+    handler, connection_manager, _robot_client_id = build_handler()
+    connection_manager.robot_clients = {}
+
+    websocket = object()
+    asyncio.run(handler.handle_control_request(websocket, "human-1", {}))
+
+    assert connection_manager.sent_to_websocket[-1][1] == "control_pending"
+    assert list(handler.control_queues.get("space-a", [])) == ["human-1"]
 
 
 def test_control_queue_grants_in_fifo_order():
@@ -127,4 +147,26 @@ def test_queued_requester_disconnect_is_removed_from_queue():
     assert list(handler.control_queues.get("space-a", [])) == []
 
     asyncio.run(handler.handle_control_release(websocket_1, "human-1", {}))
+    assert connection_manager.get_robot_controller(robot_client_id) is None
+
+
+def test_client_sent_control_granted_is_rejected():
+    handler = RobotControlHandler(
+        spaces_config=FakeSpacesConfig(),
+        robot_secrets_manager=FakeRobotSecrets(),
+        connection_manager=FakeConnectionManager(),
+        space_manager=FakeSpaceManager(),
+    )
+
+    websocket = object()
+    asyncio.run(handler.handle_control_granted(websocket, "human-1", {"controller_id": "x"}))
+    assert handler.connection_manager.sent_to_websocket[-1][1] == "error"
+
+
+def test_robot_disconnect_clears_stale_controller_mapping():
+    handler, connection_manager, robot_client_id = build_handler()
+    connection_manager.set_robot_controller(robot_client_id, "human-1")
+
+    asyncio.run(handler.handle_robot_disconnect(robot_client_id))
+
     assert connection_manager.get_robot_controller(robot_client_id) is None

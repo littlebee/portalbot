@@ -12,6 +12,9 @@ Handles:
 from fastapi import WebSocket
 from collections import deque
 from typing import Deque, Dict, Optional
+from src.commons.logger_utils import get_logger
+
+logger = get_logger("robot_control_handler")
 
 
 class RobotControlHandler:
@@ -176,6 +179,10 @@ class RobotControlHandler:
             exclude_client_id=client_id,
         )
 
+        # If controllers were waiting while robot was offline, grant the first in queue.
+        if self.connection_manager.get_robot_controller(client_id) is None:
+            await self._grant_next_controller(client_id, space_id)
+
     async def handle_control_request(
         self, websocket: WebSocket, client_id: str, data: dict
     ):
@@ -189,10 +196,11 @@ class RobotControlHandler:
 
         robot_id = self._get_robot_client_id_for_space(space_id)
         if not robot_id:
+            queue = self._get_queue(space_id)
+            if client_id not in queue:
+                queue.append(client_id)
             await self.connection_manager.send_message(
-                websocket,
-                "error",
-                {"message": "No robot is currently connected in this space"},
+                websocket, "control_pending", {"position": list(queue).index(client_id) + 1}
             )
             return
 
@@ -228,11 +236,17 @@ class RobotControlHandler:
     async def handle_control_granted(
         self, websocket: WebSocket, client_id: str, data: dict
     ):
-        """
-        Compatibility handler.
-        Control grants are owned by the public server queue logic.
-        """
-        print(f"Ignoring client-sent control_granted from {client_id}")
+        """Reject client-originated control_granted with high-severity logging."""
+        logger.error(
+            "Rejected unauthorized client-sent control_granted from %s with payload=%s",
+            client_id,
+            data,
+        )
+        await self.connection_manager.send_message(
+            websocket,
+            "error",
+            {"message": "Unauthorized control_granted message rejected"},
+        )
 
     async def handle_control_release(
         self, websocket: WebSocket, client_id: str, data: dict
@@ -319,6 +333,7 @@ class RobotControlHandler:
         # Release control if any
         controller_id = robot_info.get("controlled_by")
         if controller_id:
+            self.connection_manager.set_robot_controller(client_id, None)
             await self.connection_manager.send_to_client(
                 controller_id,
                 "control_released",

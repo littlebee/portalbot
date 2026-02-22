@@ -67,6 +67,14 @@ class WebRTCSignaling:
         robot_client_id = self._get_robot_client_in_space(space_name)
         if not robot_client_id:
             logger.error("No robot connected in space %s for control offer", space_name)
+            await self.connection_manager.send_message(
+                websocket,
+                "error",
+                {
+                    "message": "No robot connected in this space for control offer",
+                    "space": space_name,
+                },
+            )
             return
 
         controller_id = self.connection_manager.get_robot_controller(robot_client_id)
