@@ -1,0 +1,28 @@
+git+https://github.com/littlebee/basic_bot.git@main
+
+cffi
+opencv-python
+pycparser
+pydub
+pygame
+pytest
+pyttsx3
+scipy
+sounddevice
+pydantic==2.10.5
+pyyaml==6.0.1
+
+# linting and type checking. These should be fixed to a specific version that
+# works on mac, windows, and linux.  This will minimize "it works on my machine
+# but not on CI" issues.
+flake8==7.3
+mypy==1.14
+pyflakes==3.4.0
+
+# public web server requirements
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+websockets==10.4
+python-dotenv==1.0.0
+aiofiles==23.2.1
+jinja2==3.1.3
