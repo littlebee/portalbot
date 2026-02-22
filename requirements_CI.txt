@@ -1,0 +1,8 @@
+-r requirements_base.txt
+
+# later version of aiortc not able to install on CI.
+#   see https://github.com/aiortc/aiortc/issues/1406
+
+aiohttp
+aiohttp-cors
+aiortc==1.10.1
