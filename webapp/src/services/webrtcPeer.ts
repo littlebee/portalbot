@@ -12,6 +12,9 @@ export class WebRTCPeer {
 
     private _onIceCandidateRecv: (type: string, payload: any) => void;
     private _onRemoteStream?: (stream: MediaStream) => void;
+    private _onConnectionStateChange?: (
+        state: RTCPeerConnectionState,
+    ) => void;
 
     get peerConnection() {
         return this._peerConnection;
@@ -46,10 +49,12 @@ export class WebRTCPeer {
         id: string,
         onIceCandidateRecv: (type: string, payload: any) => void,
         onRemoteStream?: (stream: MediaStream) => void,
+        onConnectionStateChange?: (state: RTCPeerConnectionState) => void,
     ) {
         this.id = id;
         this._onIceCandidateRecv = onIceCandidateRecv;
         this._onRemoteStream = onRemoteStream;
+        this._onConnectionStateChange = onConnectionStateChange;
     }
 
     // Create peer connection
@@ -97,6 +102,7 @@ export class WebRTCPeer {
         pc.onconnectionstatechange = () => {
             this.debug(`Connection state: ${pc.connectionState}`);
             this._connectionState = pc.connectionState;
+            this._onConnectionStateChange?.(pc.connectionState);
         };
 
         pc.oniceconnectionstatechange = () => {

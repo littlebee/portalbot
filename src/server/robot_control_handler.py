@@ -10,6 +10,8 @@ Handles:
 """
 
 from fastapi import WebSocket
+from collections import deque
+from typing import Deque, Dict, Optional
 
 
 class RobotControlHandler:
@@ -31,6 +33,64 @@ class RobotControlHandler:
         self.robot_secrets = robot_secrets_manager
         self.connection_manager = connection_manager
         self.space_manager = space_manager
+        self.control_queues: Dict[str, Deque[str]] = {}
+
+    def _get_queue(self, space_id: str) -> Deque[str]:
+        """Get or create FIFO queue for a space."""
+        if space_id not in self.control_queues:
+            self.control_queues[space_id] = deque()
+        return self.control_queues[space_id]
+
+    def _remove_queued_controller(self, controller_id: str) -> Optional[str]:
+        """Remove a controller from whichever queue it is in."""
+        for space_id, queue in list(self.control_queues.items()):
+            if controller_id in queue:
+                queue.remove(controller_id)
+                if not queue:
+                    del self.control_queues[space_id]
+                return space_id
+        return None
+
+    def _get_robot_client_id_for_space(self, space_id: str) -> Optional[str]:
+        """Find the robot websocket client ID for a space."""
+        for robot_client_id, robot_info in self.connection_manager.robot_clients.items():
+            if robot_info.get("space") == space_id:
+                return robot_client_id
+        return None
+
+    async def _grant_control(self, robot_id: str, controller_id: str):
+        """Grant control and notify the browser client."""
+        self.connection_manager.set_robot_controller(robot_id, controller_id)
+        self.connection_manager.register_human(controller_id)
+
+        robot_info = self.connection_manager.get_robot_info(robot_id)
+        await self.connection_manager.send_to_client(
+            controller_id,
+            "control_granted",
+            {
+                "robot_id": robot_id,
+                "robot_name": robot_info["robot_name"] if robot_info else "Unknown",
+            },
+        )
+
+    async def _grant_next_controller(self, robot_id: str, space_id: str):
+        """Pop the next connected requester from the queue and grant control."""
+        queue = self.control_queues.get(space_id)
+        if queue is None:
+            return
+
+        if len(queue) == 0:
+            self.control_queues.pop(space_id, None)
+            return
+
+        while queue:
+            next_controller_id = queue.popleft()
+            if self.connection_manager.get_websocket(next_controller_id):
+                await self._grant_control(robot_id, next_controller_id)
+                break
+
+        if not queue:
+            self.control_queues.pop(space_id, None)
 
     async def handle_robot_identify(
         self, websocket: WebSocket, client_id: str, data: dict
@@ -120,73 +180,59 @@ class RobotControlHandler:
         self, websocket: WebSocket, client_id: str, data: dict
     ):
         """Handle a human requesting control of a robot"""
-        robot_id = data.get("robot_id")
-
-        if not robot_id or not self.connection_manager.is_robot(robot_id):
+        space_id = self.connection_manager.get_client_space(client_id)
+        if not space_id:
             await self.connection_manager.send_message(
-                websocket, "error", {"message": "Invalid robot_id"}
+                websocket, "error", {"message": "You must join a space first"}
             )
             return
 
-        robot_info = self.connection_manager.get_robot_info(robot_id)
-        if not robot_info:
+        robot_id = self._get_robot_client_id_for_space(space_id)
+        if not robot_id:
             await self.connection_manager.send_message(
-                websocket, "error", {"message": "Robot not found"}
+                websocket,
+                "error",
+                {"message": "No robot is currently connected in this space"},
             )
             return
 
-        # Check if robot is already controlled
-        if robot_info["controlled_by"] is not None:
+        if self.connection_manager.find_robot_by_controller(client_id):
             await self.connection_manager.send_message(
-                websocket, "error", {"message": "Robot is already being controlled"}
+                websocket, "error", {"message": "You already control a robot"}
             )
             return
 
-        # Mark human as requesting control (pending robot validation)
         self.connection_manager.register_human(client_id)
+        queue = self.control_queues.get(space_id)
+        if queue and client_id in queue:
+            await self.connection_manager.send_message(
+                websocket,
+                "control_pending",
+                {"position": list(queue).index(client_id) + 1},
+            )
+            return
 
+        current_controller_id = self.connection_manager.get_robot_controller(robot_id)
         print(f"Human {client_id} requesting control of robot {robot_id}")
 
-        # Forward control request to robot
-        await self.connection_manager.send_to_client(
-            robot_id, "control_request", {"controller_id": client_id}
+        if current_controller_id is None and not queue:
+            await self._grant_control(robot_id, client_id)
+            return
+
+        queue = self._get_queue(space_id)
+        queue.append(client_id)
+        await self.connection_manager.send_message(
+            websocket, "control_pending", {"position": len(queue)}
         )
 
     async def handle_control_granted(
         self, websocket: WebSocket, client_id: str, data: dict
     ):
-        """Handle robot granting control to a human"""
-        controller_id = data.get("controller_id")
-
-        # Verify this is a robot client
-        if not self.connection_manager.is_robot(client_id):
-            await self.connection_manager.send_message(
-                websocket, "error", {"message": "Only robots can grant control"}
-            )
-            return
-
-        if not controller_id or not self.connection_manager.get_websocket(controller_id):
-            await self.connection_manager.send_message(
-                websocket, "error", {"message": "Invalid controller_id"}
-            )
-            return
-
-        # Grant control
-        self.connection_manager.set_robot_controller(client_id, controller_id)
-        self.connection_manager.register_human(controller_id)
-
-        robot_info = self.connection_manager.get_robot_info(client_id)
-        print(f"Robot {client_id} granted control to human {controller_id}")
-
-        # Notify the human that control was granted
-        await self.connection_manager.send_to_client(
-            controller_id,
-            "control_granted",
-            {
-                "robot_id": client_id,
-                "robot_name": robot_info["robot_name"] if robot_info else "Unknown",
-            },
-        )
+        """
+        Compatibility handler.
+        Control grants are owned by the public server queue logic.
+        """
+        print(f"Ignoring client-sent control_granted from {client_id}")
 
     async def handle_control_release(
         self, websocket: WebSocket, client_id: str, data: dict
@@ -198,6 +244,8 @@ class RobotControlHandler:
             # Robot is releasing control
             robot_id = client_id
             controller_id = self.connection_manager.get_robot_controller(robot_id)
+            robot_info = self.connection_manager.get_robot_info(robot_id) or {}
+            space_id = robot_info.get("space")
             if controller_id:
                 self.connection_manager.set_robot_controller(robot_id, None)
                 print(f"Robot {robot_id} released control from human {controller_id}")
@@ -206,12 +254,17 @@ class RobotControlHandler:
                 await self.connection_manager.send_to_client(
                     controller_id, "control_released", {"robot_id": robot_id}
                 )
+            if space_id:
+                await self._grant_next_controller(robot_id, space_id)
         else:
             # Human is releasing control
             human_id = client_id
+            self._remove_queued_controller(human_id)
             # Find which robot this human controls
             robot_id = self.connection_manager.find_robot_by_controller(human_id)
             if robot_id:
+                robot_info = self.connection_manager.get_robot_info(robot_id) or {}
+                space_id = robot_info.get("space")
                 self.connection_manager.set_robot_controller(robot_id, None)
                 print(f"Human {human_id} released control of robot {robot_id}")
 
@@ -219,6 +272,8 @@ class RobotControlHandler:
                 await self.connection_manager.send_to_client(
                     robot_id, "control_released", {"controller_id": human_id}
                 )
+                if space_id:
+                    await self._grant_next_controller(robot_id, space_id)
 
     async def handle_set_angles(
         self, websocket: WebSocket, client_id: str, data: dict
@@ -259,6 +314,7 @@ class RobotControlHandler:
             return
 
         print(f"Robot '{robot_info['robot_name']}' disconnected")
+        space_id = robot_info.get("space")
 
         # Release control if any
         controller_id = robot_info.get("controlled_by")
@@ -269,17 +325,31 @@ class RobotControlHandler:
                 {"robot_id": client_id, "reason": "Robot disconnected"},
             )
 
+        queue = self.control_queues.pop(space_id, deque()) if space_id else deque()
+        for queued_controller_id in queue:
+            await self.connection_manager.send_to_client(
+                queued_controller_id,
+                "control_released",
+                {"robot_id": client_id, "reason": "Robot disconnected"},
+            )
+
     async def handle_human_disconnect(self, client_id: str):
         """Handle human disconnection"""
         if not self.connection_manager.is_human(client_id):
             return
 
+        self._remove_queued_controller(client_id)
+
         # Find and release control of any robots
         robot_id = self.connection_manager.find_robot_by_controller(client_id)
         if robot_id:
+            robot_info = self.connection_manager.get_robot_info(robot_id) or {}
+            space_id = robot_info.get("space")
             self.connection_manager.set_robot_controller(robot_id, None)
             await self.connection_manager.send_to_client(
                 robot_id,
                 "control_released",
                 {"controller_id": client_id, "reason": "Controller disconnected"},
             )
+            if space_id:
+                await self._grant_next_controller(robot_id, space_id)

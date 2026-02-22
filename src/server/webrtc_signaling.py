@@ -9,6 +9,7 @@ Handles:
 """
 
 from fastapi import WebSocket
+from typing import Optional
 from src.commons.logger_utils import get_logger
 
 logger = get_logger("webrtc_signaling")
@@ -27,6 +28,13 @@ class WebRTCSignaling:
         """
         self.connection_manager = connection_manager
         self.space_manager = space_manager
+
+    def _get_robot_client_in_space(self, space_name: str) -> Optional[str]:
+        """Return the robot client ID for the given space."""
+        for robot_client_id, robot_info in self.connection_manager.robot_clients.items():
+            if robot_info.get("space") == space_name:
+                return robot_client_id
+        return None
 
     async def handle_offer(self, websocket: WebSocket, client_id: str, data: dict):
         """Forward WebRTC offer to the other peer in the space"""
@@ -48,7 +56,7 @@ class WebRTCSignaling:
     async def handle_control_offer(
         self, websocket: WebSocket, client_id: str, data: dict
     ):
-        """Forward WebRTC control offer to the other peer in the space"""
+        """Forward control offer only from active controller to robot."""
         space_name = self.connection_manager.get_client_space(client_id)
         offer = data.get("offer")
 
@@ -56,14 +64,21 @@ class WebRTCSignaling:
             logger.error("Received control offer without space name or offer data")
             return
 
+        robot_client_id = self._get_robot_client_in_space(space_name)
+        if not robot_client_id:
+            logger.error("No robot connected in space %s for control offer", space_name)
+            return
+
+        controller_id = self.connection_manager.get_robot_controller(robot_client_id)
+        if controller_id != client_id:
+            await self.connection_manager.send_message(
+                websocket, "error", {"message": "You do not currently control this robot"}
+            )
+            return
+
         print(f"Forwarding control offer in space: {space_name}")
-        # TODO(#12): Route control offer only to the robot currently selected for
-        # control handoff instead of broadcasting to all participants.
-        await self.space_manager.broadcast_to_space(
-            space_name,
-            "control_offer",
-            {"offer": offer, "sid": client_id},
-            exclude_client_id=client_id,
+        await self.connection_manager.send_to_client(
+            robot_client_id, "control_offer", {"offer": offer, "sid": client_id}
         )
 
     async def handle_answer(self, websocket: WebSocket, client_id: str, data: dict):
@@ -89,7 +104,7 @@ class WebRTCSignaling:
     async def handle_control_answer(
         self, websocket: WebSocket, client_id: str, data: dict
     ):
-        """Forward WebRTC answer to the other peer in the space"""
+        """Forward control answer only from robot to active controller."""
         space_name = self.connection_manager.get_client_space(client_id)
         answer = data.get("answer")
 
@@ -101,14 +116,25 @@ class WebRTCSignaling:
             logger.error("Received control answer without space name or answer data")
             return
 
+        if not self.connection_manager.is_robot(client_id):
+            await self.connection_manager.send_message(
+                websocket,
+                "error",
+                {"message": "Only robot clients can send control answers"},
+            )
+            return
+
+        controller_id = self.connection_manager.get_robot_controller(client_id)
+        if not controller_id:
+            logger.warning(
+                "Dropping control answer from %s because no active controller exists",
+                client_id,
+            )
+            return
+
         print(f"Forwarding answer in space: {space_name}")
-        # TODO(#12): Route control answer only to the controlling browser instead
-        # of broadcasting to the whole space.
-        await self.space_manager.broadcast_to_space(
-            space_name,
-            "control_answer",
-            {"answer": answer, "sid": client_id},
-            exclude_client_id=client_id,
+        await self.connection_manager.send_to_client(
+            controller_id, "control_answer", {"answer": answer, "sid": client_id}
         )
 
     async def handle_ice_candidate(
