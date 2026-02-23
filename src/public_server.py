@@ -125,11 +125,12 @@ async def handle_leave_space(websocket: WebSocket, client_id: str, data: dict):
 async def handle_message(websocket: WebSocket, client_id: str, message: dict):
     """Route incoming messages to appropriate handlers"""
     message_type: str = str(message.get("type"))
-    logger.debug(
-        "Received wss message from %s with type=%s",
-        client_id,
-        message_type,
-    )
+    if message_type != "ping":
+        logger.info(
+            "Received wss message from %s with type=%s",
+            client_id,
+            message_type,
+        )
     data = message.get("data", {})
 
     handlers = {
