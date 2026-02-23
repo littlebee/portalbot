@@ -89,7 +89,7 @@ export function useWebRTC(): UseWebRTCReturn {
     const reconnectTimerRef = useRef<number | null>(null);
     const pingIntervalRef = useRef<number | null>(null);
     const intentionalDisconnectRef = useRef(false);
-    const joiningSpaceRef = useRef<string | null>(null);
+    const hasControlRef = useRef(false);
 
     // Update connection status
     const updateConnectionStatus = useCallback(
@@ -187,7 +187,23 @@ export function useWebRTC(): UseWebRTCReturn {
             localStream,
             _gLocalStream,
         );
-        const pc = new WebRTCPeer("control-peer", sendMessage);
+        const pc = new WebRTCPeer(
+            "control-peer",
+            sendMessage,
+            undefined,
+            (state) => {
+                if (
+                    (state === "failed" || state === "disconnected") &&
+                    hasControlRef.current
+                ) {
+                    console.log(
+                        `Control peer entered ${state}; releasing control`,
+                    );
+                    hasControlRef.current = false;
+                    sendMessage("control_release", {});
+                }
+            },
+        );
         pc.localStream = _gLocalStream;
         pc.createPeerConnection();
 
@@ -282,6 +298,11 @@ export function useWebRTC(): UseWebRTCReturn {
         }
     }, []);
 
+    const requestControl = useCallback(() => {
+        console.log("Requesting control");
+        sendMessage("control_request", {});
+    }, [sendMessage]);
+
     // This browser joined
     const handleJoinedSpace = useCallback(
         async (data: JoinSpaceData) => {
@@ -289,11 +310,10 @@ export function useWebRTC(): UseWebRTCReturn {
             joiningSpaceRef.current = null;
             currentSpaceRef.current = data.space;
             setCurrentSpace(data.space);
-            // TODO - run these in parallel and wait for both to complete
             await sendOffer();
-            await sendControlOffer();
+            requestControl();
         },
-        [sendOffer, sendControlOffer],
+        [requestControl, sendOffer],
     );
 
     // IF the robot goes offline or leaves the space, we get notified here
@@ -302,9 +322,9 @@ export function useWebRTC(): UseWebRTCReturn {
         async (_data: UserJoinedData) => {
             console.log("Robot joined, starting WebRTC connection");
             await sendOffer();
-            await sendControlOffer();
+            requestControl();
         },
-        [sendOffer, sendControlOffer],
+        [requestControl, sendOffer],
     );
 
     // Handle user left
@@ -316,11 +336,23 @@ export function useWebRTC(): UseWebRTCReturn {
             viewPeerConnectionRef.current?.close();
             viewPeerConnectionRef.current = null;
 
+            hasControlRef.current = false;
             controlPeerConnectionRef.current?.close();
             controlPeerConnectionRef.current = null;
         },
         [showError],
     );
+
+    const handleControlGranted = useCallback(async () => {
+        hasControlRef.current = true;
+        await sendControlOffer();
+    }, [sendControlOffer]);
+
+    const handleControlReleased = useCallback(() => {
+        hasControlRef.current = false;
+        controlPeerConnectionRef.current?.close();
+        controlPeerConnectionRef.current = null;
+    }, []);
 
     // Handle WebSocket messages
     const handleMessage = useCallback(
@@ -356,6 +388,14 @@ export function useWebRTC(): UseWebRTCReturn {
                     handleControlAnswer(data as AnswerData);
                     break;
 
+                case "control_granted":
+                    handleControlGranted();
+                    break;
+
+                case "control_released":
+                    handleControlReleased();
+                    break;
+
                 case "ice_candidate":
                     handleIceCandidate(data as IceCandidateData);
                     break;
@@ -377,6 +417,8 @@ export function useWebRTC(): UseWebRTCReturn {
             handleRobotJoined,
             handleRobotLeft,
             handleControlAnswer,
+            handleControlGranted,
+            handleControlReleased,
             handleAnswer,
             handleIceCandidate,
             showError,
@@ -511,9 +553,13 @@ export function useWebRTC(): UseWebRTCReturn {
 
     // We are leaving the space...
     const leaveSpace = useCallback(() => {
-        const activeSpace = currentSpaceRef.current ?? joiningSpaceRef.current;
-        if (activeSpace) {
-            sendMessage("leave_space", { space: activeSpace });
+        if (hasControlRef.current) {
+            hasControlRef.current = false;
+            sendMessage("control_release", {});
+        }
+
+        if (currentSpace) {
+            sendMessage("leave_space", { space: currentSpace });
         }
         joiningSpaceRef.current = null;
         currentSpaceRef.current = null;
