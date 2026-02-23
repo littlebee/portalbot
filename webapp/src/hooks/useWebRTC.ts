@@ -90,6 +90,7 @@ export function useWebRTC(): UseWebRTCReturn {
     const pingIntervalRef = useRef<number | null>(null);
     const intentionalDisconnectRef = useRef(false);
     const hasControlRef = useRef(false);
+    const joiningSpaceRef = useRef<string | null>(null);
 
     // Update connection status
     const updateConnectionStatus = useCallback(
