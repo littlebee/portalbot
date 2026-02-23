@@ -99,6 +99,9 @@ function App({ routeSpaceId, onSelectSpace, onExitSpace }: AppProps) {
                     <VideoSection
                         localStream={webrtc.localStream}
                         remoteStream={webrtc.remoteStream}
+                        hasControl={webrtc.hasControl}
+                        isControlRequestPending={webrtc.isControlRequestPending}
+                        onRequestControl={webrtc.requestControl}
                         onToggleAudio={webrtc.toggleAudio}
                         onToggleVideo={webrtc.toggleVideo}
                         onLeave={handleLeave}

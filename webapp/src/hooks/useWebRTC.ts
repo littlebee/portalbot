@@ -45,6 +45,8 @@ export interface WebRTCState {
     // Media controls
     isAudioEnabled: boolean;
     isVideoEnabled: boolean;
+    hasControl: boolean;
+    isControlRequestPending: boolean;
 
     // Error
     error: string | null;
@@ -53,6 +55,7 @@ export interface WebRTCState {
 export interface WebRTCActions {
     joinSpace: (spaceName: string) => Promise<void>;
     leaveSpace: () => void;
+    requestControl: () => void;
     toggleAudio: () => void;
     toggleVideo: () => void;
     clearError: () => void;
@@ -75,6 +78,9 @@ export function useWebRTC(): UseWebRTCReturn {
     // Media controls
     const [isAudioEnabled, setIsAudioEnabled] = useState(true);
     const [isVideoEnabled, setIsVideoEnabled] = useState(true);
+    const [hasControl, setHasControl] = useState(false);
+    const [isControlRequestPending, setIsControlRequestPending] =
+        useState(false);
 
     // Error state
     const [error, setError] = useState<string | null>(null);
@@ -91,6 +97,12 @@ export function useWebRTC(): UseWebRTCReturn {
     const intentionalDisconnectRef = useRef(false);
     const hasControlRef = useRef(false);
     const joiningSpaceRef = useRef<string | null>(null);
+
+    const clearControlState = useCallback(() => {
+        hasControlRef.current = false;
+        setHasControl(false);
+        setIsControlRequestPending(false);
+    }, []);
 
     // Update connection status
     const updateConnectionStatus = useCallback(
@@ -300,9 +312,13 @@ export function useWebRTC(): UseWebRTCReturn {
     }, []);
 
     const requestControl = useCallback(() => {
+        if (hasControlRef.current || isControlRequestPending) {
+            return;
+        }
+        setIsControlRequestPending(true);
         console.log("Requesting control");
         sendMessage("control_request", {});
-    }, [sendMessage]);
+    }, [isControlRequestPending, sendMessage]);
 
     // This browser joined
     const handleJoinedSpace = useCallback(
@@ -312,9 +328,8 @@ export function useWebRTC(): UseWebRTCReturn {
             currentSpaceRef.current = data.space;
             setCurrentSpace(data.space);
             await sendOffer();
-            requestControl();
         },
-        [requestControl, sendOffer],
+        [sendOffer],
     );
 
     // IF the robot goes offline or leaves the space, we get notified here
@@ -323,9 +338,8 @@ export function useWebRTC(): UseWebRTCReturn {
         async (_data: UserJoinedData) => {
             console.log("Robot joined, starting WebRTC connection");
             await sendOffer();
-            requestControl();
         },
-        [requestControl, sendOffer],
+        [sendOffer],
     );
 
     // Handle user left
@@ -337,23 +351,25 @@ export function useWebRTC(): UseWebRTCReturn {
             viewPeerConnectionRef.current?.close();
             viewPeerConnectionRef.current = null;
 
-            hasControlRef.current = false;
+            clearControlState();
             controlPeerConnectionRef.current?.close();
             controlPeerConnectionRef.current = null;
         },
-        [showError],
+        [clearControlState, showError],
     );
 
     const handleControlGranted = useCallback(async () => {
         hasControlRef.current = true;
+        setHasControl(true);
+        setIsControlRequestPending(false);
         await sendControlOffer();
     }, [sendControlOffer]);
 
     const handleControlReleased = useCallback(() => {
-        hasControlRef.current = false;
+        clearControlState();
         controlPeerConnectionRef.current?.close();
         controlPeerConnectionRef.current = null;
-    }, []);
+    }, [clearControlState]);
 
     // Handle WebSocket messages
     const handleMessage = useCallback(
@@ -393,6 +409,10 @@ export function useWebRTC(): UseWebRTCReturn {
                     handleControlGranted();
                     break;
 
+                case "control_pending":
+                    setIsControlRequestPending(true);
+                    break;
+
                 case "control_released":
                     handleControlReleased();
                     break;
@@ -403,6 +423,7 @@ export function useWebRTC(): UseWebRTCReturn {
 
                 case "error":
                     console.error("Server error:", (data as ErrorData).message);
+                    setIsControlRequestPending(false);
                     showError((data as ErrorData).message);
                     break;
 
@@ -516,7 +537,6 @@ export function useWebRTC(): UseWebRTCReturn {
             }
 
             joiningSpaceRef.current = trimmedSpaceName;
-
             try {
                 let stream = localStreamRef.current ?? _gLocalStream;
                 if (
@@ -564,6 +584,7 @@ export function useWebRTC(): UseWebRTCReturn {
         }
         joiningSpaceRef.current = null;
         currentSpaceRef.current = null;
+        clearControlState();
 
         viewPeerConnectionRef.current?.close();
         viewPeerConnectionRef.current = null;
@@ -573,7 +594,7 @@ export function useWebRTC(): UseWebRTCReturn {
 
         stopLocalMedia();
         setCurrentSpace(null);
-    }, [sendMessage, stopLocalMedia]);
+    }, [clearControlState, currentSpace, sendMessage, stopLocalMedia]);
 
     // Toggle audio
     const toggleAudio = useCallback(() => {
@@ -645,11 +666,14 @@ export function useWebRTC(): UseWebRTCReturn {
         remoteStream,
         isAudioEnabled,
         isVideoEnabled,
+        hasControl,
+        isControlRequestPending,
         error,
 
         // Actions
         joinSpace,
         leaveSpace,
+        requestControl,
         toggleAudio,
         toggleVideo,
         clearError,
