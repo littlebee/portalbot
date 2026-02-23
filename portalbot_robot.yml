@@ -11,7 +11,7 @@ robot_id: "robot-1"
 robot_name: "Robot 1"
 
 # Space ID from portalbot_spaces.yml that this robot belongs to
-space_id: "robot-1"
+space_id: "bees-workbench"
 
 # Path to file containing the secret key for authentication
 # This file should contain a single line with a secure random string

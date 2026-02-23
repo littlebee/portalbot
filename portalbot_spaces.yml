@@ -2,17 +2,10 @@ version: "1.0.0"
 default_image_url: "/images/default-space.jpg"
 
 spaces:
-  - id: "lobby"
-    display_name: "Lobby"
-    description: "General meeting space for video chat"
-    image_url: "/images/lobby.jpg"
-    max_participants: 2
-    enabled: true
-
-  - id: "robot-1"
-    display_name: "Robot 1"
-    description: "Connect to Robot 1 for remote control"
-    # image_url not specified - will use default_image_url
+  - id: "bees-workbench"
+    display_name: "Bee's Workbench"
+    description: "Prototype PortalBot 2d Device sitting on my workbench"
+    image_url: "/images/bees-workbench.png"
     max_participants: 2
     enabled: true
     robot_ids: ["robot-1"]  # List of robot IDs allowed to connect to this space

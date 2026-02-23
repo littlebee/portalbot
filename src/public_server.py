@@ -17,6 +17,7 @@ from pathlib import Path
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 
 # Add project root to Python path for imports to work when running directly
@@ -77,6 +78,23 @@ robot_control_handler = RobotControlHandler(
     spaces_config, robot_secrets_manager, connection_manager, space_manager
 )
 webrtc_signaling = WebRTCSignaling(connection_manager, space_manager)
+
+
+class SPAStaticFiles(StaticFiles):
+    """Serve index.html for client-side routes while preserving static asset 404s."""
+
+    async def get_response(self, path: str, scope):
+        try:
+            return await super().get_response(path, scope)
+        except StarletteHTTPException as exc:
+            if exc.status_code != 404:
+                raise
+
+            # Missing files with an extension should stay 404.
+            if "." in Path(path).name:
+                raise
+
+            return await super().get_response("index.html", scope)
 
 
 @app.get("/health")
@@ -217,7 +235,7 @@ async def websocket_endpoint(websocket: WebSocket):
 # Mount static files and templates from the vite build directory
 # Important: Because we are serving static files from the root, this
 # must be the last route defined or it will override other routes.
-app.mount("/", StaticFiles(directory="webapp/dist/", html=True))
+app.mount("/", SPAStaticFiles(directory="webapp/dist/", html=True))
 
 if __name__ == "__main__":
     import uvicorn

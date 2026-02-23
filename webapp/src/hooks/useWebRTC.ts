@@ -83,11 +83,14 @@ export function useWebRTC(): UseWebRTCReturn {
     const wsRef = useRef<WebSocket | null>(null);
     const viewPeerConnectionRef = useRef<WebRTCPeer | null>(null);
     const controlPeerConnectionRef = useRef<WebRTCPeer | null>(null);
+    const currentSpaceRef = useRef<string | null>(null);
+    const localStreamRef = useRef<MediaStream | null>(null);
     const reconnectAttemptsRef = useRef(0);
     const reconnectTimerRef = useRef<number | null>(null);
     const pingIntervalRef = useRef<number | null>(null);
     const intentionalDisconnectRef = useRef(false);
     const hasControlRef = useRef(false);
+    const joiningSpaceRef = useRef<string | null>(null);
 
     // Update connection status
     const updateConnectionStatus = useCallback(
@@ -107,6 +110,25 @@ export function useWebRTC(): UseWebRTCReturn {
     // Clear error
     const clearError = useCallback(() => {
         setError(null);
+    }, []);
+
+    const stopLocalMedia = useCallback(() => {
+        const streams = [localStreamRef.current, _gLocalStream].filter(
+            (stream): stream is MediaStream => stream !== null,
+        );
+        const seenStreamIds = new Set<string>();
+
+        streams.forEach((stream) => {
+            if (seenStreamIds.has(stream.id)) {
+                return;
+            }
+            seenStreamIds.add(stream.id);
+            stream.getTracks().forEach((track) => track.stop());
+        });
+
+        localStreamRef.current = null;
+        _gLocalStream = null;
+        setLocalStream(null);
     }, []);
 
     // Send message to signaling server
@@ -286,6 +308,8 @@ export function useWebRTC(): UseWebRTCReturn {
     const handleJoinedSpace = useCallback(
         async (data: JoinSpaceData) => {
             console.log("Joined space:", data);
+            joiningSpaceRef.current = null;
+            currentSpaceRef.current = data.space;
             setCurrentSpace(data.space);
             await sendOffer();
             requestControl();
@@ -477,24 +501,46 @@ export function useWebRTC(): UseWebRTCReturn {
     // Join space
     const joinSpace = useCallback(
         async (spaceName: string) => {
-            if (!spaceName.trim()) {
+            const trimmedSpaceName = spaceName.trim();
+
+            if (!trimmedSpaceName) {
                 showError("Please enter a space name");
                 return;
             }
 
+            if (
+                currentSpaceRef.current === trimmedSpaceName ||
+                joiningSpaceRef.current === trimmedSpaceName
+            ) {
+                return;
+            }
+
+            joiningSpaceRef.current = trimmedSpaceName;
+
             try {
-                // Get local media
-                const stream =
-                    await navigator.mediaDevices.getUserMedia(
-                        MEDIA_CONSTRAINTS,
-                    );
-                console.log("Obtained local media stream", stream);
-                setLocalStream(stream);
-                _gLocalStream = stream;
+                let stream = localStreamRef.current ?? _gLocalStream;
+                if (
+                    stream &&
+                    stream.getTracks().every((track) => track.readyState === "ended")
+                ) {
+                    stream = null;
+                }
+                if (!stream) {
+                    // Get local media
+                    stream =
+                        await navigator.mediaDevices.getUserMedia(
+                            MEDIA_CONSTRAINTS,
+                        );
+                    console.log("Obtained local media stream", stream);
+                    setLocalStream(stream);
+                    localStreamRef.current = stream;
+                    _gLocalStream = stream;
+                }
 
                 // Join the space
-                sendMessage("join_space", { space: spaceName });
+                sendMessage("join_space", { space: trimmedSpaceName });
             } catch (err) {
+                joiningSpaceRef.current = null;
                 console.error("Error joining space:", err);
                 showError(
                     `Failed to access camera/microphone: ${
@@ -516,6 +562,8 @@ export function useWebRTC(): UseWebRTCReturn {
         if (currentSpace) {
             sendMessage("leave_space", { space: currentSpace });
         }
+        joiningSpaceRef.current = null;
+        currentSpaceRef.current = null;
 
         viewPeerConnectionRef.current?.close();
         viewPeerConnectionRef.current = null;
@@ -523,14 +571,9 @@ export function useWebRTC(): UseWebRTCReturn {
         controlPeerConnectionRef.current?.close();
         controlPeerConnectionRef.current = null;
 
-        // Stop local stream
-        if (localStream) {
-            localStream.getTracks().forEach((track) => track.stop());
-            setLocalStream(null);
-        }
-
+        stopLocalMedia();
         setCurrentSpace(null);
-    }, [currentSpace, localStream, sendMessage]);
+    }, [sendMessage, stopLocalMedia]);
 
     // Toggle audio
     const toggleAudio = useCallback(() => {
@@ -576,12 +619,17 @@ export function useWebRTC(): UseWebRTCReturn {
                 controlPeerConnectionRef.current.close();
                 controlPeerConnectionRef.current = null;
             }
-
-            if (localStream) {
-                localStream.getTracks().forEach((track) => track.stop());
-            }
+            stopLocalMedia();
         };
     }, []);
+
+    useEffect(() => {
+        currentSpaceRef.current = currentSpace;
+    }, [currentSpace]);
+
+    useEffect(() => {
+        localStreamRef.current = localStream;
+    }, [localStream]);
 
     return {
         // Peers and connections

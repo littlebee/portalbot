@@ -393,4 +393,81 @@ describe("App Integration Tests", () => {
             });
         });
     });
+
+    describe("Route-Controlled Navigation", () => {
+        it("should join the route space when routeSpaceId is provided", async () => {
+            const mockJoinSpace = vi.fn().mockResolvedValue(undefined);
+            vi.mocked(useWebRTC).mockReturnValue({
+                ...mockWebRTC,
+                joinSpace: mockJoinSpace,
+            });
+
+            render(<App routeSpaceId="test-space" />);
+
+            await waitFor(() => {
+                expect(mockJoinSpace).toHaveBeenCalledWith("test-space");
+            });
+        });
+
+        it("should leave when routeSpaceId becomes null", async () => {
+            const mockLeaveSpace = vi.fn();
+            const mockHook = vi.mocked(useWebRTC);
+
+            mockHook.mockReturnValue({
+                ...mockWebRTC,
+                currentSpace: "test-space",
+                leaveSpace: mockLeaveSpace,
+            });
+
+            const { rerender } = render(<App routeSpaceId="test-space" />);
+
+            rerender(<App routeSpaceId={null} />);
+
+            await waitFor(() => {
+                expect(mockLeaveSpace).toHaveBeenCalled();
+            });
+        });
+
+        it("should use route callbacks for join and leave actions", async () => {
+            const user = userEvent.setup();
+            const onSelectSpace = vi.fn().mockResolvedValue(undefined);
+            const onExitSpace = vi.fn();
+            const mockLeaveSpace = vi.fn();
+
+            vi.mocked(useWebRTC).mockReturnValue({
+                ...mockWebRTC,
+                currentSpace: null,
+                joinSpace: vi.fn(),
+                leaveSpace: mockLeaveSpace,
+            });
+
+            const { rerender } = render(
+                <App routeSpaceId={null} onSelectSpace={onSelectSpace} />,
+            );
+
+            const testSpaceCard = screen.getByRole("button", {
+                name: /test space/i,
+            });
+            await user.click(testSpaceCard);
+
+            await waitFor(() => {
+                expect(onSelectSpace).toHaveBeenCalledWith("test-space");
+            });
+
+            vi.mocked(useWebRTC).mockReturnValue({
+                ...mockWebRTC,
+                currentSpace: "test-space",
+                joinSpace: vi.fn(),
+                leaveSpace: mockLeaveSpace,
+            });
+
+            rerender(
+                <App routeSpaceId="test-space" onExitSpace={onExitSpace} />,
+            );
+            const leaveButton = screen.getByRole("button", { name: /leave/i });
+            await user.click(leaveButton);
+            expect(mockLeaveSpace).toHaveBeenCalled();
+            expect(onExitSpace).toHaveBeenCalled();
+        });
+    });
 });

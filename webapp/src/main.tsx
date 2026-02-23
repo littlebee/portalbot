@@ -1,4 +1,4 @@
-import { StrictMode } from 'react'
+import { StrictMode, useCallback } from 'react'
 import ReactDOM from 'react-dom/client'
 import {
   Outlet,
@@ -6,6 +6,7 @@ import {
   createRootRoute,
   createRoute,
   createRouter,
+  useNavigate,
 } from '@tanstack/react-router'
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 
@@ -27,10 +28,16 @@ const rootRoute = createRootRoute({
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
-  component: App,
+  component: IndexRouteComponent,
 })
 
-const routeTree = rootRoute.addChildren([indexRoute])
+const spaceRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/$spaceId',
+  component: SpaceRouteComponent,
+})
+
+const routeTree = rootRoute.addChildren([indexRoute, spaceRoute])
 
 const router = createRouter({
   routeTree,
@@ -61,3 +68,25 @@ if (rootElement && !rootElement.innerHTML) {
 // to log results (for example: reportWebVitals(console.log))
 // or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
 reportWebVitals()
+
+function IndexRouteComponent() {
+  const navigate = useNavigate()
+  const handleSelectSpace = useCallback(
+    async (spaceId: string) => {
+      await navigate({ to: '/$spaceId', params: { spaceId } })
+    },
+    [navigate],
+  )
+
+  return <App routeSpaceId={null} onSelectSpace={handleSelectSpace} />
+}
+
+function SpaceRouteComponent() {
+  const { spaceId } = spaceRoute.useParams()
+  const navigate = useNavigate()
+  const handleExitSpace = useCallback(() => {
+    void navigate({ to: '/' })
+  }, [navigate])
+
+  return <App routeSpaceId={spaceId} onExitSpace={handleExitSpace} />
+}
