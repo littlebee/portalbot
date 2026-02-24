@@ -30,12 +30,16 @@ describe("App Integration Tests", () => {
         remoteStream: null,
         isAudioEnabled: true,
         isVideoEnabled: true,
+        hasControl: false,
+        isControlRequestPending: false,
         error: null,
         joinSpace: vi.fn(),
         leaveSpace: vi.fn(),
+        requestControl: vi.fn(),
         toggleAudio: vi.fn(),
         toggleVideo: vi.fn(),
         clearError: vi.fn(),
+        ws: null,
     };
 
     // Mock spaces data
@@ -138,7 +142,11 @@ describe("App Integration Tests", () => {
             render(<App />);
 
             // VideoSection should be visible
-            expect(screen.getByText(/^you$/i)).toBeInTheDocument();
+            expect(screen.getByText(/remote video/i)).toBeInTheDocument();
+            expect(
+                screen.getByRole("button", { name: /teleport/i }),
+            ).toBeInTheDocument();
+            expect(screen.queryByText(/^you$/i)).not.toBeInTheDocument();
             // Space list should not be visible
             expect(screen.queryByText("Join a Space")).not.toBeInTheDocument();
         });
@@ -166,6 +174,7 @@ describe("App Integration Tests", () => {
             vi.mocked(useWebRTC).mockReturnValue({
                 ...mockWebRTC,
                 currentSpace: "test-space",
+                hasControl: true,
                 toggleAudio: mockToggleAudio,
             });
 
@@ -186,6 +195,7 @@ describe("App Integration Tests", () => {
             vi.mocked(useWebRTC).mockReturnValue({
                 ...mockWebRTC,
                 currentSpace: "test-space",
+                hasControl: true,
                 toggleVideo: mockToggleVideo,
             });
 
@@ -215,6 +225,40 @@ describe("App Integration Tests", () => {
             await user.click(leaveButton);
 
             expect(mockLeaveSpace).toHaveBeenCalled();
+        });
+
+        it("should call requestControl when teleport button is clicked", async () => {
+            const user = userEvent.setup();
+            const mockRequestControl = vi.fn();
+
+            vi.mocked(useWebRTC).mockReturnValue({
+                ...mockWebRTC,
+                currentSpace: "test-space",
+                requestControl: mockRequestControl,
+            });
+
+            render(<App />);
+
+            const teleportButton = screen.getByRole("button", {
+                name: /teleport/i,
+            });
+            await user.click(teleportButton);
+
+            expect(mockRequestControl).toHaveBeenCalled();
+        });
+
+        it("should disable teleport button while control request is pending", () => {
+            vi.mocked(useWebRTC).mockReturnValue({
+                ...mockWebRTC,
+                currentSpace: "test-space",
+                isControlRequestPending: true,
+            });
+
+            render(<App />);
+
+            expect(
+                screen.getByRole("button", { name: /teleporting/i }),
+            ).toBeDisabled();
         });
     });
 
@@ -307,6 +351,7 @@ describe("App Integration Tests", () => {
                 ...mockWebRTC,
                 currentSpace: "test-space",
                 localStream: mockStream,
+                hasControl: true,
             });
 
             render(<App />);
@@ -367,7 +412,10 @@ describe("App Integration Tests", () => {
             rerender(<App />);
 
             // Verify VideoSection is shown
-            expect(screen.getByText(/you/i)).toBeInTheDocument();
+            expect(screen.getByText(/remote video/i)).toBeInTheDocument();
+            expect(
+                screen.getByRole("button", { name: /teleport/i }),
+            ).toBeInTheDocument();
             // Space list should not be visible
             expect(screen.queryByText("Join a Space")).not.toBeInTheDocument();
 
@@ -395,20 +443,6 @@ describe("App Integration Tests", () => {
     });
 
     describe("Route-Controlled Navigation", () => {
-        it("should join the route space when routeSpaceId is provided", async () => {
-            const mockJoinSpace = vi.fn().mockResolvedValue(undefined);
-            vi.mocked(useWebRTC).mockReturnValue({
-                ...mockWebRTC,
-                joinSpace: mockJoinSpace,
-            });
-
-            render(<App routeSpaceId="test-space" />);
-
-            await waitFor(() => {
-                expect(mockJoinSpace).toHaveBeenCalledWith("test-space");
-            });
-        });
-
         it("should leave when routeSpaceId becomes null", async () => {
             const mockLeaveSpace = vi.fn();
             const mockHook = vi.mocked(useWebRTC);

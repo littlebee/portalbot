@@ -54,15 +54,19 @@ function App({ routeSpaceId, onSelectSpace, onExitSpace }: AppProps) {
         if (suppressAutoJoinRef.current) {
             return;
         }
+        if (webrtc.ws === null) {
+            return;
+        }
 
         pendingJoinRef.current = routeSpaceId;
-        void webrtc.joinSpace(routeSpaceId);
+        webrtc.joinSpace(routeSpaceId);
     }, [
         isRouteControlled,
         routeSpaceId,
         webrtc.currentSpace,
         webrtc.joinSpace,
         webrtc.leaveSpace,
+        webrtc.ws,
     ]);
 
     const isInSpace = isRouteControlled
@@ -99,6 +103,9 @@ function App({ routeSpaceId, onSelectSpace, onExitSpace }: AppProps) {
                     <VideoSection
                         localStream={webrtc.localStream}
                         remoteStream={webrtc.remoteStream}
+                        hasControl={webrtc.hasControl}
+                        isControlRequestPending={webrtc.isControlRequestPending}
+                        onRequestControl={webrtc.requestControl}
                         onToggleAudio={webrtc.toggleAudio}
                         onToggleVideo={webrtc.toggleVideo}
                         onLeave={handleLeave}
