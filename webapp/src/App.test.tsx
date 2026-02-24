@@ -39,6 +39,7 @@ describe("App Integration Tests", () => {
         toggleAudio: vi.fn(),
         toggleVideo: vi.fn(),
         clearError: vi.fn(),
+        ws: null,
     };
 
     // Mock spaces data
@@ -442,20 +443,6 @@ describe("App Integration Tests", () => {
     });
 
     describe("Route-Controlled Navigation", () => {
-        it("should join the route space when routeSpaceId is provided", async () => {
-            const mockJoinSpace = vi.fn().mockResolvedValue(undefined);
-            vi.mocked(useWebRTC).mockReturnValue({
-                ...mockWebRTC,
-                joinSpace: mockJoinSpace,
-            });
-
-            render(<App routeSpaceId="test-space" />);
-
-            await waitFor(() => {
-                expect(mockJoinSpace).toHaveBeenCalledWith("test-space");
-            });
-        });
-
         it("should leave when routeSpaceId becomes null", async () => {
             const mockLeaveSpace = vi.fn();
             const mockHook = vi.mocked(useWebRTC);

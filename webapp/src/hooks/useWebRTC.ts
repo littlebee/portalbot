@@ -37,6 +37,7 @@ export interface WebRTCState {
     statusText: string;
     clientId: string | null;
     currentSpace: string | null;
+    ws: WebSocket | null;
 
     // Media streams
     localStream: MediaStream | null;
@@ -53,7 +54,7 @@ export interface WebRTCState {
 }
 
 export interface WebRTCActions {
-    joinSpace: (spaceName: string) => Promise<void>;
+    joinSpace: (spaceName: string) => void;
     leaveSpace: () => void;
     requestControl: () => void;
     toggleAudio: () => void;
@@ -253,7 +254,7 @@ export function useWebRTC(): UseWebRTCReturn {
     const sendControlOffer = useCallback(async () => {
         const pc = createControlConnection();
         try {
-            pc.localStream = _gLocalStream;
+            pc.localStream = await _getLocalStream();
             pc.addLocalTracks();
             const offer = await pc.createOffer();
 
@@ -519,9 +520,44 @@ export function useWebRTC(): UseWebRTCReturn {
         handleMessage,
     ]);
 
+    const _getLocalStream = useCallback(async () => {
+        try {
+            let stream = localStreamRef.current ?? _gLocalStream;
+            if (
+                stream &&
+                stream
+                    .getTracks()
+                    .every((track) => track.readyState === "ended")
+            ) {
+                stream = null;
+            }
+            if (!stream) {
+                // Get local media
+                stream =
+                    await navigator.mediaDevices.getUserMedia(
+                        MEDIA_CONSTRAINTS,
+                    );
+                console.log("Obtained local media stream", stream);
+                setLocalStream(stream);
+                localStreamRef.current = stream;
+                _gLocalStream = stream;
+            }
+            return stream;
+        } catch (err) {
+            joiningSpaceRef.current = null;
+            console.error("Error getting local media stream:    ", err);
+            showError(
+                `Failed to access camera/microphone: ${
+                    err instanceof Error ? err.message : "Unknown error"
+                }`,
+            );
+            throw err;
+        }
+    }, [showError, setLocalStream]);
+
     // Join space
     const joinSpace = useCallback(
-        async (spaceName: string) => {
+        (spaceName: string) => {
             const trimmedSpaceName = spaceName.trim();
 
             if (!trimmedSpaceName) {
@@ -538,25 +574,6 @@ export function useWebRTC(): UseWebRTCReturn {
 
             joiningSpaceRef.current = trimmedSpaceName;
             try {
-                let stream = localStreamRef.current ?? _gLocalStream;
-                if (
-                    stream &&
-                    stream.getTracks().every((track) => track.readyState === "ended")
-                ) {
-                    stream = null;
-                }
-                if (!stream) {
-                    // Get local media
-                    stream =
-                        await navigator.mediaDevices.getUserMedia(
-                            MEDIA_CONSTRAINTS,
-                        );
-                    console.log("Obtained local media stream", stream);
-                    setLocalStream(stream);
-                    localStreamRef.current = stream;
-                    _gLocalStream = stream;
-                }
-
                 // Join the space
                 sendMessage("join_space", { space: trimmedSpaceName });
             } catch (err) {
@@ -669,6 +686,7 @@ export function useWebRTC(): UseWebRTCReturn {
         hasControl,
         isControlRequestPending,
         error,
+        ws: wsRef.current,
 
         // Actions
         joinSpace,

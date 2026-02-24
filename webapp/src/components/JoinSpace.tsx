@@ -3,7 +3,7 @@ import styles from './JoinSpace.module.css'
 import { useSpaces } from '@/hooks/useSpaces'
 
 interface JoinSpaceProps {
-  onJoin: (spaceName: string) => Promise<void>
+  onJoin: (spaceName: string) => void
   disabled?: boolean
 }
 
@@ -11,12 +11,12 @@ export default function JoinSpace({ onJoin, disabled = false }: JoinSpaceProps) 
   const { enabledSpaces, loading, error } = useSpaces()
   const [joiningSpaceId, setJoiningSpaceId] = useState<string | null>(null)
 
-  const handleSpaceClick = async (spaceId: string) => {
+  const handleSpaceClick = (spaceId: string) => {
     if (joiningSpaceId || disabled) return
 
     setJoiningSpaceId(spaceId)
     try {
-      await onJoin(spaceId)
+      onJoin(spaceId)
     } finally {
       setJoiningSpaceId(null)
     }
