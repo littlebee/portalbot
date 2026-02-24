@@ -114,6 +114,17 @@ Use the project script for full test runs:
 1. `python -m pytest -vv tests/`
 2. `cd webapp && npm install && npm run test`
 
+## Validating
+
+### run the full suite of code validation scripts
+
+to identify python types, flake8, typescript, eslint and prettier errors.  Fix what things (like spacing and punctuation) that can be fixed by the various tools.
+
+```bash
+./validate.sh
+```
+
+
 ### Pytest rule
 Only run `pytest` directly when targeting an individual module/test during focused debugging.
 

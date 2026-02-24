@@ -27,7 +27,7 @@ class SpaceConfig(BaseModel):
     enabled: bool = Field(True, description="Whether the space is currently available")
     robot_ids: List[str] = Field(
         default_factory=list,
-        description="List of robot IDs allowed to connect to this space"
+        description="List of robot IDs allowed to connect to this space",
     )
 
     @field_validator("id")

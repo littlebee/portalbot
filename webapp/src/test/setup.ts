@@ -3,40 +3,40 @@
  * Configures the testing environment and global mocks
  */
 
-import { afterEach, vi } from 'vitest'
-import { cleanup } from '@testing-library/react'
-import '@testing-library/jest-dom/vitest'
+import { afterEach, vi } from "vitest";
+import { cleanup } from "@testing-library/react";
+import "@testing-library/jest-dom/vitest";
 
 // Cleanup after each test
 afterEach(() => {
-  cleanup()
-})
+    cleanup();
+});
 
 // Mock WebRTC APIs that aren't available in jsdom
-global.RTCPeerConnection = vi.fn() as any
-global.RTCSessionDescription = vi.fn() as any
-global.RTCIceCandidate = vi.fn() as any
+global.RTCPeerConnection = vi.fn() as any;
+global.RTCSessionDescription = vi.fn() as any;
+global.RTCIceCandidate = vi.fn() as any;
 
 // Mock MediaStream
 global.MediaStream = class MediaStream {
-  getTracks() {
-    return []
-  }
-  getAudioTracks() {
-    return []
-  }
-  getVideoTracks() {
-    return []
-  }
-} as any
+    getTracks() {
+        return [];
+    }
+    getAudioTracks() {
+        return [];
+    }
+    getVideoTracks() {
+        return [];
+    }
+} as any;
 
 // Mock navigator.mediaDevices
-Object.defineProperty(global.navigator, 'mediaDevices', {
-  value: {
-    getUserMedia: vi.fn(),
-  },
-  writable: true,
-})
+Object.defineProperty(global.navigator, "mediaDevices", {
+    value: {
+        getUserMedia: vi.fn(),
+    },
+    writable: true,
+});
 
 // Mock WebSocket
-global.WebSocket = vi.fn() as any
+global.WebSocket = vi.fn() as any;
