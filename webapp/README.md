@@ -1,4 +1,4 @@
-Welcome to your new TanStack app! 
+Welcome to your new TanStack app!
 
 # Getting Started
 
@@ -29,9 +29,7 @@ npm run test
 
 This project uses [Tailwind CSS](https://tailwindcss.com/) for styling.
 
-
 ## Linting & Formatting
-
 
 This project uses [eslint](https://eslint.org/) and [prettier](https://prettier.io/) for linting and formatting. Eslint is configured using [tanstack/eslint-config](https://tanstack.com/config/latest/docs/eslint). The following scripts are available:
 
@@ -41,9 +39,8 @@ npm run format
 npm run check
 ```
 
-
-
 ## Routing
+
 This project uses [TanStack Router](https://tanstack.com/router). The initial setup is a code based router. Which means that the routes are defined in code (in the `./src/main.tsx` file). If you like you can also use a file based routing setup by following the [File Based Routing](https://tanstack.com/router/latest/docs/framework/react/guide/file-based-routing) guide.
 
 ### Adding A Route
@@ -52,9 +49,9 @@ To add a new route to your application just add another `createRoute` call to th
 
 ```tsx
 const aboutRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/about",
-  component: () => <h1>About</h1>,
+    getParentRoute: () => rootRoute,
+    path: "/about",
+    component: () => <h1>About</h1>,
 });
 ```
 
@@ -72,9 +69,9 @@ Of course you don't need to implement the About page in the `main.tsx` file. You
 import About from "./components/About.tsx";
 
 const aboutRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/about",
-  component: About,
+    getParentRoute: () => rootRoute,
+    path: "/about",
+    component: About,
 });
 ```
 
@@ -104,19 +101,18 @@ More information on the `Link` component can be found in the [Link documentation
 
 ### Using A Layout
 
-
 Layouts can be used to wrap the contents of the routes in menus, headers, footers, etc.
 
 There is already a layout in the `src/main.tsx` file:
 
 ```tsx
 const rootRoute = createRootRoute({
-  component: () => (
-    <>
-      <Outlet />
-      <TanStackRouterDevtools />
-    </>
-  ),
+    component: () => (
+        <>
+            <Outlet />
+            <TanStackRouterDevtools />
+        </>
+    ),
 });
 ```
 
@@ -126,25 +122,24 @@ You can use the React component specified in the `component` property of the `ro
 import { Link } from "@tanstack/react-router";
 
 const rootRoute = createRootRoute({
-  component: () => (
-    <>
-      <header>
-        <nav>
-          <Link to="/">Home</Link>
-          <Link to="/about">About</Link>
-        </nav>
-      </header>
-      <Outlet />
-      <TanStackRouterDevtools />
-    </>
-  ),
+    component: () => (
+        <>
+            <header>
+                <nav>
+                    <Link to="/">Home</Link>
+                    <Link to="/about">About</Link>
+                </nav>
+            </header>
+            <Outlet />
+            <TanStackRouterDevtools />
+        </>
+    ),
 });
 ```
 
 The `<TanStackRouterDevtools />` component is not required so you can remove it if you don't want it in your layout.
 
 More information on layouts can be found in the [Layouts documentation](https://tanstack.com/router/latest/docs/framework/react/guide/routing-concepts#layouts).
-
 
 ### Migrating To File Base Routing
 
@@ -162,14 +157,9 @@ import viteReact from "@vitejs/plugin-react";
 import { TanStackRouterVite } from "@tanstack/router-plugin/vite";
 import tailwindcss from "@tailwindcss/vite";
 
-  
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [
-    TanStackRouterVite(),
-    viteReact(),
-    tailwindcss()
-  ],
+    plugins: [TanStackRouterVite(), viteReact(), tailwindcss()],
 });
 ```
 
@@ -186,12 +176,12 @@ import { Outlet, createRootRoute } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 
 export const Route = createRootRoute({
-  component: () => (
-    <>
-      <Outlet />
-      <TanStackRouterDevtools />
-    </>
-  ),
+    component: () => (
+        <>
+            <Outlet />
+            <TanStackRouterDevtools />
+        </>
+    ),
 });
 ```
 
@@ -204,40 +194,40 @@ import logo from "../logo.svg";
 import "../App.css";
 
 export const Route = createFileRoute("/")({
-  component: App,
+    component: App,
 });
 
 function App() {
-  return (
-    <div className="text-center">
-      <header className="min-h-screen flex flex-col items-center justify-center bg-[#282c34] text-white text-[calc(10px+2vmin)]">
-        <img
-          src={logo}
-          className="h-[40vmin] pointer-events-none animate-[spin_20s_linear_infinite]"
-          alt="logo"
-        />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a
-          className="text-[#61dafb] hover:underline"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-        <a
-          className="text-[#61dafb] hover:underline"
-          href="https://tanstack.com"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn TanStack
-        </a>
-      </header>
-    </div>
-  );
+    return (
+        <div className="text-center">
+            <header className="min-h-screen flex flex-col items-center justify-center bg-[#282c34] text-white text-[calc(10px+2vmin)]">
+                <img
+                    src={logo}
+                    className="h-[40vmin] pointer-events-none animate-[spin_20s_linear_infinite]"
+                    alt="logo"
+                />
+                <p>
+                    Edit <code>src/App.tsx</code> and save to reload.
+                </p>
+                <a
+                    className="text-[#61dafb] hover:underline"
+                    href="https://reactjs.org"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                >
+                    Learn React
+                </a>
+                <a
+                    className="text-[#61dafb] hover:underline"
+                    href="https://tanstack.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                >
+                    Learn TanStack
+                </a>
+            </header>
+        </div>
+    );
 }
 ```
 
@@ -260,29 +250,29 @@ import reportWebVitals from "./reportWebVitals.ts";
 
 // Create a new router instance
 const router = createRouter({
-  routeTree,
-  defaultPreload: "intent",
-  defaultPreloadStaleTime: 0,
-  scrollRestoration: true,
-  defaultStructuralSharing: true
+    routeTree,
+    defaultPreload: "intent",
+    defaultPreloadStaleTime: 0,
+    scrollRestoration: true,
+    defaultStructuralSharing: true,
 });
 
 // Register the router instance for type safety
 declare module "@tanstack/react-router" {
-  interface Register {
-    router: typeof router;
-  }
+    interface Register {
+        router: typeof router;
+    }
 }
 
 // Render the app
 const rootElement = document.getElementById("app")!;
 if (!rootElement.innerHTML) {
-  const root = ReactDOM.createRoot(rootElement);
-  root.render(
-    <StrictMode>
-      <RouterProvider router={router} />
-    </StrictMode>
-  );
+    const root = ReactDOM.createRoot(rootElement);
+    root.render(
+        <StrictMode>
+            <RouterProvider router={router} />
+        </StrictMode>,
+    );
 }
 
 // If you want to start measuring performance in your app, pass a function
@@ -303,26 +293,26 @@ For example:
 
 ```tsx
 const peopleRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/people",
-  loader: async () => {
-    const response = await fetch("https://swapi.dev/api/people");
-    return response.json() as Promise<{
-      results: {
-        name: string;
-      }[];
-    }>;
-  },
-  component: () => {
-    const data = peopleRoute.useLoaderData();
-    return (
-      <ul>
-        {data.results.map((person) => (
-          <li key={person.name}>{person.name}</li>
-        ))}
-      </ul>
-    );
-  },
+    getParentRoute: () => rootRoute,
+    path: "/people",
+    loader: async () => {
+        const response = await fetch("https://swapi.dev/api/people");
+        return response.json() as Promise<{
+            results: {
+                name: string;
+            }[];
+        }>;
+    },
+    component: () => {
+        const data = peopleRoute.useLoaderData();
+        return (
+            <ul>
+                {data.results.map((person) => (
+                    <li key={person.name}>{person.name}</li>
+                ))}
+            </ul>
+        );
+    },
 });
 ```
 
@@ -350,13 +340,13 @@ const queryClient = new QueryClient();
 // ...
 
 if (!rootElement.innerHTML) {
-  const root = ReactDOM.createRoot(rootElement);
+    const root = ReactDOM.createRoot(rootElement);
 
-  root.render(
-    <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
-    </QueryClientProvider>
-  );
+    root.render(
+        <QueryClientProvider client={queryClient}>
+            <RouterProvider router={router} />
+        </QueryClientProvider>,
+    );
 }
 ```
 
@@ -366,13 +356,13 @@ You can also add TanStack Query Devtools to the root route (optional).
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 
 const rootRoute = createRootRoute({
-  component: () => (
-    <>
-      <Outlet />
-      <ReactQueryDevtools buttonPosition="top-right" />
-      <TanStackRouterDevtools />
-    </>
-  ),
+    component: () => (
+        <>
+            <Outlet />
+            <ReactQueryDevtools buttonPosition="top-right" />
+            <TanStackRouterDevtools />
+        </>
+    ),
 });
 ```
 
@@ -384,24 +374,24 @@ import { useQuery } from "@tanstack/react-query";
 import "./App.css";
 
 function App() {
-  const { data } = useQuery({
-    queryKey: ["people"],
-    queryFn: () =>
-      fetch("https://swapi.dev/api/people")
-        .then((res) => res.json())
-        .then((data) => data.results as { name: string }[]),
-    initialData: [],
-  });
+    const { data } = useQuery({
+        queryKey: ["people"],
+        queryFn: () =>
+            fetch("https://swapi.dev/api/people")
+                .then((res) => res.json())
+                .then((data) => data.results as { name: string }[]),
+        initialData: [],
+    });
 
-  return (
-    <div>
-      <ul>
-        {data.map((person) => (
-          <li key={person.name}>{person.name}</li>
-        ))}
-      </ul>
-    </div>
-  );
+    return (
+        <div>
+            <ul>
+                {data.map((person) => (
+                    <li key={person.name}>{person.name}</li>
+                ))}
+            </ul>
+        </div>
+    );
 }
 
 export default App;
@@ -429,14 +419,14 @@ import "./App.css";
 const countStore = new Store(0);
 
 function App() {
-  const count = useStore(countStore);
-  return (
-    <div>
-      <button onClick={() => countStore.setState((n) => n + 1)}>
-        Increment - {count}
-      </button>
-    </div>
-  );
+    const count = useStore(countStore);
+    return (
+        <div>
+            <button onClick={() => countStore.setState((n) => n + 1)}>
+                Increment - {count}
+            </button>
+        </div>
+    );
 }
 
 export default App;
@@ -454,23 +444,23 @@ import "./App.css";
 const countStore = new Store(0);
 
 const doubledStore = new Derived({
-  fn: () => countStore.state * 2,
-  deps: [countStore],
+    fn: () => countStore.state * 2,
+    deps: [countStore],
 });
 doubledStore.mount();
 
 function App() {
-  const count = useStore(countStore);
-  const doubledCount = useStore(doubledStore);
+    const count = useStore(countStore);
+    const doubledCount = useStore(doubledStore);
 
-  return (
-    <div>
-      <button onClick={() => countStore.setState((n) => n + 1)}>
-        Increment - {count}
-      </button>
-      <div>Doubled - {doubledCount}</div>
-    </div>
-  );
+    return (
+        <div>
+            <button onClick={() => countStore.setState((n) => n + 1)}>
+                Increment - {count}
+            </button>
+            <div>Doubled - {doubledCount}</div>
+        </div>
+    );
 }
 
 export default App;

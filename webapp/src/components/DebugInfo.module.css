@@ -1,44 +1,44 @@
 .section {
-  margin-bottom: 20px;
+    margin-bottom: 20px;
 }
 
 .details {
-  background: var(--card-bg);
-  padding: 15px;
-  border-radius: var(--border-radius);
-  border: 1px solid var(--border-color);
+    background: var(--card-bg);
+    padding: 15px;
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
 }
 
 .summary {
-  cursor: pointer;
-  font-weight: 600;
-  color: var(--text-color);
-  user-select: none;
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--text-color);
+    user-select: none;
 }
 
 .summary:hover {
-  color: var(--primary-color);
+    color: var(--primary-color);
 }
 
 .debugInfo {
-  margin-top: 15px;
-  padding-top: 15px;
-  border-top: 1px solid var(--border-color);
-  font-size: 0.875rem;
-  line-height: 1.8;
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid var(--border-color);
+    font-size: 0.875rem;
+    line-height: 1.8;
 }
 
 .debugRow {
-  display: flex;
-  justify-content: space-between;
-  padding: 5px 0;
+    display: flex;
+    justify-content: space-between;
+    padding: 5px 0;
 }
 
 .debugRow strong {
-  color: var(--text-secondary);
+    color: var(--text-secondary);
 }
 
 .debugRow span {
-  color: var(--text-color);
-  font-family: 'Courier New', monospace;
+    color: var(--text-color);
+    font-family: "Courier New", monospace;
 }

@@ -1,54 +1,54 @@
 .statusBar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: var(--card-bg);
-  padding: 15px 20px;
-  border-radius: 10px;
-  margin-bottom: 20px;
-  box-shadow: var(--shadow);
-  flex-wrap: wrap;
-  gap: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--card-bg);
+    padding: 15px 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    box-shadow: var(--shadow);
+    flex-wrap: wrap;
+    gap: 10px;
 }
 
 .statusIndicator {
-  padding: 8px 16px;
-  border-radius: 20px;
-  font-size: 0.875rem;
-  font-weight: 600;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .statusIndicator::before {
-  content: '';
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  display: inline-block;
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
 }
 
 .statusIndicator.connected {
-  background: rgba(22, 163, 74, 0.2);
-  color: var(--success-color);
+    background: rgba(22, 163, 74, 0.2);
+    color: var(--success-color);
 }
 
 .statusIndicator.connected::before {
-  background: var(--success-color);
-  box-shadow: 0 0 10px var(--success-color);
+    background: var(--success-color);
+    box-shadow: 0 0 10px var(--success-color);
 }
 
 .statusIndicator.disconnected {
-  background: rgba(220, 38, 38, 0.2);
-  color: var(--danger-color);
+    background: rgba(220, 38, 38, 0.2);
+    color: var(--danger-color);
 }
 
 .statusIndicator.disconnected::before {
-  background: var(--danger-color);
+    background: var(--danger-color);
 }
 
 .spaceInfo {
-  color: var(--text-secondary);
-  font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
 }

@@ -4,5 +4,5 @@
  */
 
 export default function Header() {
-  return null // Header is now inline in App.tsx for simplicity
+    return null; // Header is now inline in App.tsx for simplicity
 }

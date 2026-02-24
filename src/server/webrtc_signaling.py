@@ -31,7 +31,10 @@ class WebRTCSignaling:
 
     def _get_robot_client_in_space(self, space_name: str) -> Optional[str]:
         """Return the robot client ID for the given space."""
-        for robot_client_id, robot_info in self.connection_manager.robot_clients.items():
+        for (
+            robot_client_id,
+            robot_info,
+        ) in self.connection_manager.robot_clients.items():
             if robot_info.get("space") == space_name:
                 return robot_client_id
         return None
@@ -80,7 +83,9 @@ class WebRTCSignaling:
         controller_id = self.connection_manager.get_robot_controller(robot_client_id)
         if controller_id != client_id:
             await self.connection_manager.send_message(
-                websocket, "error", {"message": "You do not currently control this robot"}
+                websocket,
+                "error",
+                {"message": "You do not currently control this robot"},
             )
             return
 
