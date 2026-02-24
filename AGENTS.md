@@ -118,7 +118,9 @@ Use the project script for full test runs:
 
 ### run the full suite of code validation scripts
 
-to identify python types, flake8, typescript, eslint and prettier errors.  Fix what things (like spacing and punctuation) that can be fixed by the various tools.
+To identify python types, flake8, typescript, eslint and prettier errors.  Fix what things (like spacing and punctuation) that can be fixed by the various tools.
+
+This script should be run by the agent on all proposed changes.
 
 ```bash
 ./validate.sh
