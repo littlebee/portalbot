@@ -1,4 +1,4 @@
-import { StrictMode, useCallback } from "react";
+import { useCallback } from "react";
 import ReactDOM from "react-dom/client";
 import {
     Outlet,
@@ -57,11 +57,10 @@ declare module "@tanstack/react-router" {
 const rootElement = document.getElementById("app");
 if (rootElement && !rootElement.innerHTML) {
     const root = ReactDOM.createRoot(rootElement);
-    root.render(
-        <StrictMode>
-            <RouterProvider router={router} />
-        </StrictMode>,
-    );
+    // Using <StrictMode> causes useWebRTC to run effects twice,
+    // which leads to double WebSocket connections and other issues
+    // when running locally via Vite dev server.
+    root.render(<RouterProvider router={router} />);
 }
 
 // If you want to start measuring performance in your app, pass a function
