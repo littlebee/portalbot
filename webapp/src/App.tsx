@@ -7,9 +7,10 @@ import { useCallback, useEffect, useRef } from "react";
 import styles from "./App.module.css";
 import DebugInfo from "@/components/DebugInfo";
 import JoinSpace from "@/components/JoinSpace";
-import StatusBar from "@/components/StatusBar";
+import StatusBar from "@/components/ConnectionTag";
 import VideoSection from "@/components/VideoSection";
 import { useWebRTC } from "@/hooks/useWebRTC";
+import ConnectionTag from "@/components/ConnectionTag";
 
 interface AppProps {
     routeSpaceId?: string | null;
@@ -72,7 +73,6 @@ function App({ routeSpaceId, onSelectSpace, onExitSpace }: AppProps) {
     const isInSpace = isRouteControlled
         ? Boolean(routeSpaceId)
         : Boolean(webrtc.currentSpace);
-    const selectedSpaceName = routeSpaceId ?? webrtc.currentSpace;
     const handleJoin = onSelectSpace ?? webrtc.joinSpace;
     const handleLeave = useCallback(() => {
         suppressAutoJoinRef.current = true;
@@ -84,17 +84,23 @@ function App({ routeSpaceId, onSelectSpace, onExitSpace }: AppProps) {
     return (
         <div className={styles.container}>
             <header className={styles.header}>
-                <h1 className={styles.title}>Portalbot</h1>
-                <p className={styles.subtitle}>
-                    Secure Video Chat with TURN Server Support
-                </p>
+                <img
+                    className={styles.logo}
+                    alt="Portalbot Logo"
+                    src="/images/portal1_color_logo.png"
+                />
+                <div className={styles.titles}>
+                    <h1 className={styles.title}>Portalbot</h1>
+                    <p className={styles.subtitle}>
+                        Telepresence powered by WebRTC. Join a space to get
+                        started!
+                    </p>
+                </div>
+                <ConnectionTag
+                    status={webrtc.connectionStatus}
+                    statusText={webrtc.statusText}
+                />
             </header>
-
-            <StatusBar
-                status={webrtc.connectionStatus}
-                statusText={webrtc.statusText}
-                spaceName={selectedSpaceName}
-            />
 
             {!isInSpace ? (
                 <JoinSpace onJoin={handleJoin} />
