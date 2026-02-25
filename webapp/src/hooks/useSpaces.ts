@@ -25,8 +25,13 @@ export function useSpaces(): UseSpacesReturn {
         setLoading(true);
         setError(null);
 
+        const url =
+            window.location.hostname === "localhost"
+                ? "https://portalbot.net/spaces"
+                : "/spaces";
+
         try {
-            const response = await fetch("/spaces");
+            const response = await fetch(url);
 
             if (!response.ok) {
                 throw new Error(

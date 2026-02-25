@@ -39,6 +39,14 @@ export const MEDIA_CONSTRAINTS: MediaStreamConstraints = {
 
 // Get WebSocket URL based on current protocol
 export function getWebSocketUrl(): string {
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    return `${protocol}//${window.location.host}/ws`;
+    let protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    let host = window.location.host;
+
+    if (window.location.hostname === "localhost") {
+        // Use ws for localhost regardless of protocol
+        protocol = "wss:";
+        host = "portalbot.net";
+    }
+
+    return `${protocol}//${host}/ws`;
 }
