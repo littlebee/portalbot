@@ -37,8 +37,29 @@ export const MEDIA_CONSTRAINTS: MediaStreamConstraints = {
     },
 };
 
+export function hasPublicServerUrlParam(): boolean {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get("publicServer") === "localhost";
+}
+
+function getPublicServerHost(): string {
+    return hasPublicServerUrlParam() ? "localhost" : "portalbot.net";
+}
+
+function getRestApiProtocol(): string {
+    return hasPublicServerUrlParam() ? "http" : "https";
+}
+
+function getWebSocketProtocol(): string {
+    return hasPublicServerUrlParam() ? "ws" : "wss";
+}
+
+export function getRestApiBaseUrl(): string {
+    const url = `${getRestApiProtocol()}://${getPublicServerHost()}`;
+    return url;
+}
 // Get WebSocket URL based on current protocol
 export function getWebSocketUrl(): string {
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    return `${protocol}//${window.location.host}/ws`;
+    const url = `${getWebSocketProtocol()}://${getPublicServerHost()}/ws`;
+    return url;
 }
