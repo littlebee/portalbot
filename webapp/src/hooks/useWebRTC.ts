@@ -637,9 +637,6 @@ export function useWebRTC(): UseWebRTCReturn {
 
         // Cleanup on unmount
         return () => {
-            console.log(
-                "Cleaning up WebRTC connections and WebSocket for unmount",
-            );
             intentionalDisconnectRef.current = true;
             stopPingInterval();
 

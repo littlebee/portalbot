@@ -5,6 +5,8 @@
 import { useEffect, useState } from "react";
 import type { Space, SpacesResponse } from "@/types/space";
 
+import { getRestApiBaseUrl } from "@/services/webrtc-config";
+
 interface UseSpacesReturn {
     spaces: Array<Space>;
     enabledSpaces: Array<Space>;
@@ -25,10 +27,7 @@ export function useSpaces(): UseSpacesReturn {
         setLoading(true);
         setError(null);
 
-        const url =
-            window.location.hostname === "localhost"
-                ? "https://portalbot.net/spaces"
-                : "/spaces";
+        const url = `${getRestApiBaseUrl()}/spaces`;
 
         try {
             const response = await fetch(url);
