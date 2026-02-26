@@ -5,9 +5,7 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import styles from "./App.module.css";
-import DebugInfo from "@/components/DebugInfo";
 import JoinSpace from "@/components/JoinSpace";
-import StatusBar from "@/components/ConnectionTag";
 import VideoSection from "@/components/VideoSection";
 import { useWebRTC } from "@/hooks/useWebRTC";
 import ConnectionTag from "@/components/ConnectionTag";
@@ -105,23 +103,19 @@ function App({ routeSpaceId, onSelectSpace, onExitSpace }: AppProps) {
             {!isInSpace ? (
                 <JoinSpace onJoin={handleJoin} />
             ) : (
-                <>
-                    <VideoSection
-                        localStream={webrtc.localStream}
-                        remoteStream={webrtc.remoteStream}
-                        hasControl={webrtc.hasControl}
-                        isControlRequestPending={webrtc.isControlRequestPending}
-                        onRequestControl={webrtc.requestControl}
-                        onToggleAudio={webrtc.toggleAudio}
-                        onToggleVideo={webrtc.toggleVideo}
-                        onLeave={handleLeave}
-                        isAudioEnabled={webrtc.isAudioEnabled}
-                        isVideoEnabled={webrtc.isVideoEnabled}
-                        connectionStatus={webrtc.connectionStatus}
-                    />
-
-                    <DebugInfo connectionStatus={webrtc.connectionStatus} />
-                </>
+                <VideoSection
+                    localStream={webrtc.localStream}
+                    remoteStream={webrtc.remoteStream}
+                    hasControl={webrtc.hasControl}
+                    isControlRequestPending={webrtc.isControlRequestPending}
+                    onRequestControl={webrtc.requestControl}
+                    onToggleAudio={webrtc.toggleAudio}
+                    onToggleVideo={webrtc.toggleVideo}
+                    onLeave={handleLeave}
+                    isAudioEnabled={webrtc.isAudioEnabled}
+                    isVideoEnabled={webrtc.isVideoEnabled}
+                    connectionStatus={webrtc.connectionStatus}
+                />
             )}
 
             {webrtc.error && (
