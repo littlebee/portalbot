@@ -18,6 +18,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.middleware.cors import CORSMiddleware
 
 
 # Add project root to Python path for imports to work when running directly
@@ -69,6 +70,23 @@ app = FastAPI(
     title="Portalbot WebRTC Signaling Server",
     description="Real-time signaling server for WebRTC video chat using native WebSockets",
     version="3.0.0",
+)
+
+# Define the list of allowed origins
+origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    # Add your public REST server's production URL here when deployed
+    # "https://api.yourdomain.com",
+]
+
+# Add the CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,  # List of allowed origins
+    allow_credentials=True,  # Allow cookies and authorization headers
+    allow_methods=["*"],  # Allow all HTTP methods (GET, POST, PUT, DELETE, etc)
+    allow_headers=["*"],  # Allow all headers
 )
 
 # Initialize managers
@@ -236,6 +254,7 @@ async def websocket_endpoint(websocket: WebSocket):
 # Important: Because we are serving static files from the root, this
 # must be the last route defined or it will override other routes.
 app.mount("/", SPAStaticFiles(directory="webapp/dist/", html=True))
+
 
 if __name__ == "__main__":
     import uvicorn

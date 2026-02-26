@@ -56,7 +56,10 @@ class RobotControlHandler:
 
     def _get_robot_client_id_for_space(self, space_id: str) -> Optional[str]:
         """Find the robot websocket client ID for a space."""
-        for robot_client_id, robot_info in self.connection_manager.robot_clients.items():
+        for (
+            robot_client_id,
+            robot_info,
+        ) in self.connection_manager.robot_clients.items():
             if robot_info.get("space") == space_id:
                 return robot_client_id
         return None
@@ -147,7 +150,9 @@ class RobotControlHandler:
             return
 
         # Register as robot
-        self.connection_manager.register_robot(client_id, robot_id, robot_name, space_id)
+        self.connection_manager.register_robot(
+            client_id, robot_id, robot_name, space_id
+        )
 
         # Join the space
         success = await self.space_manager.join_space(websocket, client_id, space_id)
@@ -164,7 +169,9 @@ class RobotControlHandler:
             "joined_space",
             {
                 "space": space_id,
-                "participants": list(self.space_manager.get_space_participants(space_id)),
+                "participants": list(
+                    self.space_manager.get_space_participants(space_id)
+                ),
                 "is_robot": True,
                 "robot_id": robot_id,
                 "robot_name": robot_name,
@@ -200,7 +207,9 @@ class RobotControlHandler:
             if client_id not in queue:
                 queue.append(client_id)
             await self.connection_manager.send_message(
-                websocket, "control_pending", {"position": list(queue).index(client_id) + 1}
+                websocket,
+                "control_pending",
+                {"position": list(queue).index(client_id) + 1},
             )
             return
 
@@ -289,9 +298,7 @@ class RobotControlHandler:
                 if space_id:
                     await self._grant_next_controller(robot_id, space_id)
 
-    async def handle_set_angles(
-        self, websocket: WebSocket, client_id: str, data: dict
-    ):
+    async def handle_set_angles(self, websocket: WebSocket, client_id: str, data: dict):
         """Handle set_angles command from human to robot"""
         robot_id = data.get("robot_id")
         angles = data.get("angles")  # e.g., {"pan": 90, "tilt": 45}

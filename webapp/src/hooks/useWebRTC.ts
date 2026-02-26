@@ -643,7 +643,6 @@ export function useWebRTC(): UseWebRTCReturn {
             if (reconnectTimerRef.current) {
                 clearTimeout(reconnectTimerRef.current);
             }
-
             if (wsRef.current) {
                 wsRef.current.close();
             }

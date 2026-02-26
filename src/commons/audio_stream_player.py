@@ -39,10 +39,11 @@ else:
 
 
 class AudioStreamPlayer:
-
     def __init__(self):
         # Audio playback setup
-        self.audio_queue: queue.Queue[np.ndarray] = queue.Queue(maxsize=5)  # Small buffer for low latency
+        self.audio_queue: queue.Queue[np.ndarray] = queue.Queue(
+            maxsize=5
+        )  # Small buffer for low latency
         self.audio_stream = None
         self.audio_thread = None
 

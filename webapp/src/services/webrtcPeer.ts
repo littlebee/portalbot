@@ -12,9 +12,7 @@ export class WebRTCPeer {
 
     private _onIceCandidateRecv: (type: string, payload: any) => void;
     private _onRemoteStream?: (stream: MediaStream) => void;
-    private _onConnectionStateChange?: (
-        state: RTCPeerConnectionState,
-    ) => void;
+    private _onConnectionStateChange?: (state: RTCPeerConnectionState) => void;
 
     get peerConnection() {
         return this._peerConnection;
