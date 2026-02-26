@@ -9,6 +9,7 @@
     margin-bottom: 20px;
     display: flex;
     flex-direction: row;
+    max-width: 80%;
 }
 
 .logo {

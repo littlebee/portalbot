@@ -8,7 +8,6 @@ import styles from "./App.module.css";
 import JoinSpace from "@/components/JoinSpace";
 import VideoSection from "@/components/VideoSection";
 import { useWebRTC } from "@/hooks/useWebRTC";
-import ConnectionTag from "@/components/ConnectionTag";
 
 interface AppProps {
     routeSpaceId?: string | null;
@@ -94,10 +93,6 @@ function App({ routeSpaceId, onSelectSpace, onExitSpace }: AppProps) {
                         started!
                     </p>
                 </div>
-                <ConnectionTag
-                    status={webrtc.connectionStatus}
-                    statusText={webrtc.statusText}
-                />
             </header>
 
             {!isInSpace ? (

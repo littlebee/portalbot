@@ -1,4 +1,6 @@
 import { useEffect, useRef } from "react";
+import cx from "classnames";
+
 import styles from "./VideoSection.module.css";
 import StreamingControls from "./StreamingControls";
 
@@ -46,14 +48,7 @@ export default function VideoSection({
         }
     }, [remoteStream]);
 
-    const getConnectionStatusText = () => {
-        if (!remoteStream) {
-            return "Waiting for peer...";
-        }
-        return connectionStatus;
-    };
-
-    const statusText = getConnectionStatusText();
+    const statusText = remoteStream ? "" : "Waiting for peer...";
 
     return (
         <div className={styles.section}>
@@ -74,15 +69,14 @@ export default function VideoSection({
                 </div>
 
                 {hasControl && (
-                    <div className={`${styles.videoWrapper} ${styles.local}`}>
+                    <div className={cx(styles.videoWrapper, styles.local)}>
                         <video
                             ref={localVideoRef}
                             autoPlay
                             playsInline
                             muted
-                            className={styles.video}
+                            className={cx(styles.video, styles.localVideo)}
                         />
-                        <div className={styles.videoLabel}>You</div>
                     </div>
                 )}
             </div>
