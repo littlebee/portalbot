@@ -6,6 +6,8 @@ robot_secrets/*.key
 !robot_secrets/README.md
 
 node_modules/
+package-lock.json
+dist/
 
 # mac os
 .DS_Store
