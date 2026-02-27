@@ -47,6 +47,9 @@ export function VideoSection({
                 await remoteVideoElement.play();
                 setShowEnableAudio(false);
             } catch (playError) {
+                // Autoplay with audio is often blocked by browsers, so we
+                // catch the error and show an option to enable audio
+
                 console.warn(
                     "Remote autoplay with audio blocked, retrying muted:",
                     playError,
