@@ -14,7 +14,8 @@ import "./styles/variables.css";
 import "./styles.css";
 import reportWebVitals from "./reportWebVitals.ts";
 
-import App from "./App.tsx";
+import { Spaces } from "./pages/Spaces.tsx";
+import { Space } from "./pages/Space.tsx";
 
 const rootRoute = createRootRoute({
     component: () => (
@@ -77,7 +78,7 @@ function IndexRouteComponent() {
         [navigate],
     );
 
-    return <App routeSpaceId={null} onSelectSpace={handleSelectSpace} />;
+    return <Spaces onSelectSpace={handleSelectSpace} />;
 }
 
 function SpaceRouteComponent() {
@@ -87,5 +88,5 @@ function SpaceRouteComponent() {
         void navigate({ to: "/" });
     }, [navigate]);
 
-    return <App routeSpaceId={spaceId} onExitSpace={handleExitSpace} />;
+    return <Space spaceId={spaceId} onExitSpace={handleExitSpace} />;
 }

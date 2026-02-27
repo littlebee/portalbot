@@ -14,7 +14,7 @@ import sys
 import json
 import uuid
 from pathlib import Path
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -134,6 +134,23 @@ async def health_check():
 async def get_spaces():
     """Get list of available spaces"""
     return spaces_config.to_dict()
+
+
+@app.get("/spaces/{space_id}")
+async def get_space(space_id: str):
+    """Get a single space by ID"""
+    space = spaces_config.get_space_by_id(space_id)
+    if space is None:
+        raise HTTPException(status_code=404, detail="Space not found")
+
+    return {
+        "id": space.id,
+        "display_name": space.display_name,
+        "description": space.description,
+        "image_url": space.image_url,
+        "max_participants": space.max_participants,
+        "enabled": space.enabled,
+    }
 
 
 async def handle_ping(websocket: WebSocket, client_id: str, data: dict):

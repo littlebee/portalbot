@@ -7,26 +7,20 @@ interface VideoSectionProps {
     localStream: MediaStream | null;
     remoteStream: MediaStream | null;
     hasControl: boolean;
-    isControlRequestPending: boolean;
-    onRequestControl: () => void;
     onToggleAudio: () => void;
     onToggleVideo: () => void;
     isAudioEnabled: boolean;
     isVideoEnabled: boolean;
-    connectionStatus: string;
 }
 
 export function VideoSection({
     localStream,
     remoteStream,
     hasControl,
-    isControlRequestPending,
-    onRequestControl,
     onToggleAudio,
     onToggleVideo,
     isAudioEnabled,
     isVideoEnabled,
-    connectionStatus,
 }: VideoSectionProps) {
     const localVideoRef = useRef<HTMLVideoElement>(null);
     const remoteVideoRef = useRef<HTMLVideoElement>(null);

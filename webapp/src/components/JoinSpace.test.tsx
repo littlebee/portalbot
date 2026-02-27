@@ -134,8 +134,6 @@ describe("JoinSpace", () => {
         const user = userEvent.setup();
         const enabledSpaces = mockSpaces.filter((space) => space.enabled);
 
-        mockOnJoin.mockResolvedValue(undefined);
-
         vi.mocked(useSpacesModule.useSpaces).mockReturnValue({
             spaces: mockSpaces,
             enabledSpaces,
@@ -150,7 +148,7 @@ describe("JoinSpace", () => {
         await user.click(lobbyCard);
 
         await waitFor(() => {
-            expect(mockOnJoin).toHaveBeenCalledWith("lobby");
+            expect(mockOnJoin).toHaveBeenCalledWith(enabledSpaces[0]);
         });
     });
 
@@ -211,6 +209,6 @@ describe("JoinSpace", () => {
         const lobbyCard = screen.getByRole("button", { name: /lobby/i });
         await user.click(lobbyCard);
 
-        expect(mockOnJoin).toHaveBeenCalledWith("lobby");
+        expect(mockOnJoin).toHaveBeenCalledWith(enabledSpaces[0]);
     });
 });
