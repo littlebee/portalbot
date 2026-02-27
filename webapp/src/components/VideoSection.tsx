@@ -23,7 +23,7 @@ export function VideoSection({
     isVideoEnabled,
 }: VideoSectionProps) {
     const remoteVideoRef = useRef<HTMLVideoElement>(null);
-    const [showEnableAudio, setShowEnableAudio] = useState(false);
+    const [isRemoteAudioMuted, setIsRemoteAudioMuted] = useState(true);
 
     // Attach remote stream to video element
     useEffect(() => {
@@ -35,57 +35,52 @@ export function VideoSection({
 
         if (!remoteStream) {
             remoteVideoElement.srcObject = null;
-            setShowEnableAudio(false);
             return;
         }
 
         remoteVideoElement.srcObject = remoteStream;
+        remoteVideoElement.muted = true;
 
         const playRemoteVideo = async () => {
             try {
-                remoteVideoElement.muted = false;
                 await remoteVideoElement.play();
-                setShowEnableAudio(false);
             } catch (playError) {
-                // Autoplay with audio is often blocked by browsers, so we
-                // catch the error and show an option to enable audio
-
-                console.warn(
-                    "Remote autoplay with audio blocked, retrying muted:",
-                    playError,
-                );
-                remoteVideoElement.muted = true;
-                try {
-                    await remoteVideoElement.play();
-                    setShowEnableAudio(true);
-                } catch (mutedPlayError) {
-                    console.error(
-                        "Failed to autoplay remote video even when muted:",
-                        mutedPlayError,
-                    );
-                    setShowEnableAudio(false);
-                }
+                console.error("Failed to autoplay remote video:", playError);
             }
         };
 
         void playRemoteVideo();
     }, [remoteStream]);
 
-    const handleEnableAudio = useCallback(async () => {
+    useEffect(() => {
         const remoteVideoElement = remoteVideoRef.current;
         if (!remoteVideoElement) {
             return;
         }
 
-        remoteVideoElement.muted = false;
-        try {
-            await remoteVideoElement.play();
-            setShowEnableAudio(false);
-        } catch (error) {
-            console.warn("Remote audio is still blocked:", error);
-            setShowEnableAudio(true);
+        remoteVideoElement.muted = isRemoteAudioMuted;
+    }, [isRemoteAudioMuted]);
+
+    const handleToggleRemoteAudio = useCallback(async () => {
+        const remoteVideoElement = remoteVideoRef.current;
+        if (!remoteVideoElement) {
+            return;
         }
-    }, []);
+
+        const nextMutedState = !isRemoteAudioMuted;
+        remoteVideoElement.muted = nextMutedState;
+        setIsRemoteAudioMuted(nextMutedState);
+
+        if (!nextMutedState) {
+            try {
+                await remoteVideoElement.play();
+            } catch (error) {
+                console.warn("Remote audio could not be enabled:", error);
+                remoteVideoElement.muted = true;
+                setIsRemoteAudioMuted(true);
+            }
+        }
+    }, [isRemoteAudioMuted]);
 
     const statusText = remoteStream ? "" : "Waiting for peer...";
 
@@ -97,6 +92,7 @@ export function VideoSection({
                         ref={remoteVideoRef}
                         autoPlay
                         playsInline
+                        muted={isRemoteAudioMuted}
                         className={styles.video}
                     />
                     <div className={styles.videoLabel}>Remote Video</div>
@@ -105,17 +101,15 @@ export function VideoSection({
                             {statusText}
                         </div>
                     )}
-                    {showEnableAudio && (
-                        <button
-                            type="button"
-                            className={styles.enableAudioButton}
-                            onClick={() => {
-                                void handleEnableAudio();
-                            }}
-                        >
-                            Enable audio
-                        </button>
-                    )}
+                    <button
+                        type="button"
+                        className={styles.enableAudioButton}
+                        onClick={() => {
+                            void handleToggleRemoteAudio();
+                        }}
+                    >
+                        {isRemoteAudioMuted ? "Unmute audio" : "Mute audio"}
+                    </button>
                 </div>
 
                 {hasControl && (
