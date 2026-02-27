@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import styles from "./VideoSection.module.css";
 import LocalVideo from "./LocalVideo";
@@ -22,22 +22,67 @@ export function VideoSection({
     isAudioEnabled,
     isVideoEnabled,
 }: VideoSectionProps) {
-    const localVideoRef = useRef<HTMLVideoElement>(null);
     const remoteVideoRef = useRef<HTMLVideoElement>(null);
-
-    // Attach local stream to video element
-    useEffect(() => {
-        if (localVideoRef.current && localStream) {
-            localVideoRef.current.srcObject = localStream;
-        }
-    }, [localStream]);
+    const [showEnableAudio, setShowEnableAudio] = useState(false);
 
     // Attach remote stream to video element
     useEffect(() => {
-        if (remoteVideoRef.current && remoteStream) {
-            remoteVideoRef.current.srcObject = remoteStream;
+        const remoteVideoElement = remoteVideoRef.current;
+
+        if (!remoteVideoElement) {
+            return;
         }
+
+        if (!remoteStream) {
+            remoteVideoElement.srcObject = null;
+            setShowEnableAudio(false);
+            return;
+        }
+
+        remoteVideoElement.srcObject = remoteStream;
+
+        const playRemoteVideo = async () => {
+            try {
+                remoteVideoElement.muted = false;
+                await remoteVideoElement.play();
+                setShowEnableAudio(false);
+            } catch (playError) {
+                console.warn(
+                    "Remote autoplay with audio blocked, retrying muted:",
+                    playError,
+                );
+                remoteVideoElement.muted = true;
+                try {
+                    await remoteVideoElement.play();
+                    setShowEnableAudio(true);
+                } catch (mutedPlayError) {
+                    console.error(
+                        "Failed to autoplay remote video even when muted:",
+                        mutedPlayError,
+                    );
+                    setShowEnableAudio(false);
+                }
+            }
+        };
+
+        void playRemoteVideo();
     }, [remoteStream]);
+
+    const handleEnableAudio = useCallback(async () => {
+        const remoteVideoElement = remoteVideoRef.current;
+        if (!remoteVideoElement) {
+            return;
+        }
+
+        remoteVideoElement.muted = false;
+        try {
+            await remoteVideoElement.play();
+            setShowEnableAudio(false);
+        } catch (error) {
+            console.warn("Remote audio is still blocked:", error);
+            setShowEnableAudio(true);
+        }
+    }, []);
 
     const statusText = remoteStream ? "" : "Waiting for peer...";
 
@@ -56,6 +101,17 @@ export function VideoSection({
                         <div className={styles.connectionStatus}>
                             {statusText}
                         </div>
+                    )}
+                    {showEnableAudio && (
+                        <button
+                            type="button"
+                            className={styles.enableAudioButton}
+                            onClick={() => {
+                                void handleEnableAudio();
+                            }}
+                        >
+                            Enable audio
+                        </button>
                     )}
                 </div>
 

@@ -65,3 +65,17 @@
     pointer-events: none;
     animation: pulse 2s ease-in-out infinite;
 }
+
+.enableAudioButton {
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    font-size: 0.875rem;
+    font-weight: 600;
+    padding: 8px 12px;
+    cursor: pointer;
+}
