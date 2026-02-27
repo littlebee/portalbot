@@ -1,5 +1,9 @@
+import cx from "classnames";
+
 import LeaveSpaceButton from "./LeaveSpaceButton";
-import styles from "./RootHeader.module.css";
+
+import rootStyles from "./RootHeader.module.css";
+import styles from "./SpaceHeader.module.css";
 
 import type { Space } from "@/types/space";
 
@@ -10,9 +14,9 @@ export interface SpaceHeaderProps {
 
 export function SpaceHeader({ space, onLeave }: SpaceHeaderProps) {
     return !space ? (
-        <div className={styles.titles}>
-            <h1 className={styles.title}>Joining space...</h1>
-            <p className={styles.subtitle}>
+        <div className={rootStyles.titles}>
+            <h1 className={rootStyles.title}>Joining space...</h1>
+            <p className={rootStyles.subtitle}>
                 Please wait while we connect you to the space.
             </p>
         </div>
@@ -20,14 +24,14 @@ export function SpaceHeader({ space, onLeave }: SpaceHeaderProps) {
         <>
             <LeaveSpaceButton onLeave={onLeave} />
             <img
-                className={styles.logo}
+                className={cx(rootStyles.logo, styles.logo)}
                 src={space.image_url}
                 alt={space.display_name}
             />
 
-            <div className={styles.titles}>
-                <h1 className={styles.title}>{space.display_name}</h1>
-                <p className={styles.subtitle}>
+            <div className={rootStyles.titles}>
+                <h1 className={rootStyles.title}>{space.display_name}</h1>
+                <p className={rootStyles.subtitle}>
                     {space.description || "No description available."}
                 </p>
             </div>

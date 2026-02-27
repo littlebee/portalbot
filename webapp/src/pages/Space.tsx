@@ -72,10 +72,11 @@ export function Space({ spaceId, onExitSpace }: SpaceProps) {
                 localStream={webrtc.localStream}
                 remoteStream={webrtc.remoteStream}
                 hasControl={webrtc.hasControl}
-                onToggleAudio={webrtc.toggleAudio}
-                onToggleVideo={webrtc.toggleVideo}
+                onRequestControl={webrtc.requestControl}
                 isAudioEnabled={webrtc.isAudioEnabled}
+                onToggleAudio={webrtc.toggleAudio}
                 isVideoEnabled={webrtc.isVideoEnabled}
+                onToggleVideo={webrtc.toggleVideo}
             />
 
             {webrtc.error && (

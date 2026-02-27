@@ -2,25 +2,29 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import styles from "./VideoSection.module.css";
 import LocalVideo from "./LocalVideo";
+import RequestControlButton from "./RequestControlButton";
 
 interface VideoSectionProps {
     localStream: MediaStream | null;
     remoteStream: MediaStream | null;
+
     hasControl: boolean;
-    onToggleAudio: () => void;
-    onToggleVideo: () => void;
+    onRequestControl: () => void;
     isAudioEnabled: boolean;
+    onToggleAudio: () => void;
     isVideoEnabled: boolean;
+    onToggleVideo: () => void;
 }
 
 export function VideoSection({
     localStream,
     remoteStream,
     hasControl,
-    onToggleAudio,
-    onToggleVideo,
+    onRequestControl,
     isAudioEnabled,
+    onToggleAudio,
     isVideoEnabled,
+    onToggleVideo,
 }: VideoSectionProps) {
     const remoteVideoRef = useRef<HTMLVideoElement>(null);
     const [isRemoteAudioMuted, setIsRemoteAudioMuted] = useState(true);
@@ -82,6 +86,26 @@ export function VideoSection({
         }
     }, [isRemoteAudioMuted]);
 
+    const handleRequestControl = useCallback(() => {
+        onRequestControl();
+        if (!isAudioEnabled) {
+            onToggleAudio();
+        }
+        if (!isVideoEnabled) {
+            onToggleVideo();
+        }
+        if (isRemoteAudioMuted) {
+            handleToggleRemoteAudio();
+        }
+    }, [
+        onRequestControl,
+        onToggleAudio,
+        onToggleVideo,
+        isAudioEnabled,
+        isVideoEnabled,
+        isRemoteAudioMuted,
+    ]);
+
     const statusText = remoteStream ? "" : "Waiting for peer...";
 
     return (
@@ -111,7 +135,9 @@ export function VideoSection({
                         {isRemoteAudioMuted ? "Unmute audio" : "Mute audio"}
                     </button>
                 </div>
-
+                {!hasControl && (
+                    <RequestControlButton onClick={handleRequestControl} />
+                )}
                 {hasControl && (
                     <LocalVideo
                         localStream={localStream}
