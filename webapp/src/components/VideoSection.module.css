@@ -24,12 +24,6 @@
     border: 2px solid var(--border-color);
 }
 
-.videoWrapper.local {
-    position: absolute;
-    top: 70px;
-    right: 2px;
-}
-
 .video {
     width: 100%;
     height: 100%;
@@ -39,27 +33,8 @@
     background: var(--bg-color);
 }
 
-.localVideo {
-    max-height: 100px;
-    width: 120px;
-    object-fit: cover;
-}
-
 @media (min-width: 768px) {
-    .videoWrapper.local {
-        position: absolute;
-        top: 40px;
-        right: 20px;
-    }
-
-    .localVideo {
-        width: 210px;
-        max-height: initial;
-    }
-}
-
-@media (min-width: 768px) {
-    .videoWrapper:not(.local) .video {
+    .videoWrapper .video {
         min-height: 700px;
     }
 }

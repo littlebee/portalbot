@@ -1,8 +1,7 @@
 import { useEffect, useRef } from "react";
-import cx from "classnames";
 
 import styles from "./VideoSection.module.css";
-import StreamingControls from "./StreamingControls";
+import LocalVideo from "./LocalVideo";
 
 interface VideoSectionProps {
     localStream: MediaStream | null;
@@ -12,13 +11,12 @@ interface VideoSectionProps {
     onRequestControl: () => void;
     onToggleAudio: () => void;
     onToggleVideo: () => void;
-    onLeave: () => void;
     isAudioEnabled: boolean;
     isVideoEnabled: boolean;
     connectionStatus: string;
 }
 
-export default function VideoSection({
+export function VideoSection({
     localStream,
     remoteStream,
     hasControl,
@@ -26,7 +24,6 @@ export default function VideoSection({
     onRequestControl,
     onToggleAudio,
     onToggleVideo,
-    onLeave,
     isAudioEnabled,
     isVideoEnabled,
     connectionStatus,
@@ -69,28 +66,17 @@ export default function VideoSection({
                 </div>
 
                 {hasControl && (
-                    <div className={cx(styles.videoWrapper, styles.local)}>
-                        <video
-                            ref={localVideoRef}
-                            autoPlay
-                            playsInline
-                            muted
-                            className={cx(styles.video, styles.localVideo)}
-                        />
-                    </div>
+                    <LocalVideo
+                        localStream={localStream}
+                        onToggleAudio={onToggleAudio}
+                        onToggleVideo={onToggleVideo}
+                        isAudioEnabled={isAudioEnabled}
+                        isVideoEnabled={isVideoEnabled}
+                    />
                 )}
             </div>
-
-            <StreamingControls
-                hasControl={hasControl}
-                isControlRequestPending={isControlRequestPending}
-                onRequestControl={onRequestControl}
-                onToggleAudio={onToggleAudio}
-                onToggleVideo={onToggleVideo}
-                onLeave={onLeave}
-                isAudioEnabled={isAudioEnabled}
-                isVideoEnabled={isVideoEnabled}
-            />
         </div>
     );
 }
+
+export default VideoSection;

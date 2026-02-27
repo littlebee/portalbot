@@ -1,0 +1,11 @@
+.leaveButton {
+    height: 100px;
+    background-color: transparent;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 16px;
+    border: 2px solid var(--danger-color);
+    margin-right: 20px;
+}

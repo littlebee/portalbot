@@ -3,11 +3,16 @@
  * Main component for WebRTC video chat application
  */
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import styles from "./App.module.css";
-import JoinSpace from "@/components/JoinSpace";
-import VideoSection from "@/components/VideoSection";
+
+import type { Space } from "./types/space";
+
+import { JoinSpace } from "@/components/JoinSpace";
+import { VideoSection } from "@/components/VideoSection";
 import { useWebRTC } from "@/hooks/useWebRTC";
+import { RootHeader } from "@/components/RootHeader";
+import { SpaceHeader } from "@/components/SpaceHeader";
 
 interface AppProps {
     routeSpaceId?: string | null;
@@ -67,10 +72,22 @@ function App({ routeSpaceId, onSelectSpace, onExitSpace }: AppProps) {
         webrtc.ws,
     ]);
 
+    const handleJoin = useCallback(
+        (space: Space) => {
+            console.log("Joining space:", space);
+            if (onSelectSpace) {
+                onSelectSpace(space.id);
+            } else {
+                webrtc.joinSpace(space.id);
+            }
+        },
+        [onSelectSpace, webrtc.joinSpace],
+    );
+
     const isInSpace = isRouteControlled
         ? Boolean(routeSpaceId)
         : Boolean(webrtc.currentSpace);
-    const handleJoin = onSelectSpace ?? webrtc.joinSpace;
+
     const handleLeave = useCallback(() => {
         suppressAutoJoinRef.current = true;
         pendingJoinRef.current = routeSpaceId ?? null;
@@ -81,18 +98,11 @@ function App({ routeSpaceId, onSelectSpace, onExitSpace }: AppProps) {
     return (
         <div className={styles.container}>
             <header className={styles.header}>
-                <img
-                    className={styles.logo}
-                    alt="Portalbot Logo"
-                    src="/images/portal1_color_logo.png"
-                />
-                <div className={styles.titles}>
-                    <h1 className={styles.title}>Portalbot</h1>
-                    <p className={styles.subtitle}>
-                        Telepresence powered by WebRTC. Join a space to get
-                        started!
-                    </p>
-                </div>
+                {isInSpace ? (
+                    <SpaceHeader space={}} onLeave={handleLeave} />
+                ) : (
+                    <RootHeader />
+                )}
             </header>
 
             {!isInSpace ? (
@@ -106,7 +116,6 @@ function App({ routeSpaceId, onSelectSpace, onExitSpace }: AppProps) {
                     onRequestControl={webrtc.requestControl}
                     onToggleAudio={webrtc.toggleAudio}
                     onToggleVideo={webrtc.toggleVideo}
-                    onLeave={handleLeave}
                     isAudioEnabled={webrtc.isAudioEnabled}
                     isVideoEnabled={webrtc.isVideoEnabled}
                     connectionStatus={webrtc.connectionStatus}
