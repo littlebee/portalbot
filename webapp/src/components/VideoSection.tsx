@@ -1,59 +1,112 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+
 import styles from "./VideoSection.module.css";
-import StreamingControls from "./StreamingControls";
+import LocalVideo from "./LocalVideo";
+import RequestControlButton from "./RequestControlButton";
 
 interface VideoSectionProps {
     localStream: MediaStream | null;
     remoteStream: MediaStream | null;
+
     hasControl: boolean;
-    isControlRequestPending: boolean;
     onRequestControl: () => void;
-    onToggleAudio: () => void;
-    onToggleVideo: () => void;
-    onLeave: () => void;
     isAudioEnabled: boolean;
+    onToggleAudio: () => void;
     isVideoEnabled: boolean;
-    connectionStatus: string;
+    onToggleVideo: () => void;
 }
 
-export default function VideoSection({
+export function VideoSection({
     localStream,
     remoteStream,
     hasControl,
-    isControlRequestPending,
     onRequestControl,
-    onToggleAudio,
-    onToggleVideo,
-    onLeave,
     isAudioEnabled,
+    onToggleAudio,
     isVideoEnabled,
-    connectionStatus,
+    onToggleVideo,
 }: VideoSectionProps) {
-    const localVideoRef = useRef<HTMLVideoElement>(null);
     const remoteVideoRef = useRef<HTMLVideoElement>(null);
-
-    // Attach local stream to video element
-    useEffect(() => {
-        if (localVideoRef.current && localStream) {
-            localVideoRef.current.srcObject = localStream;
-        }
-    }, [localStream]);
+    const [isRemoteAudioMuted, setIsRemoteAudioMuted] = useState(true);
 
     // Attach remote stream to video element
     useEffect(() => {
-        if (remoteVideoRef.current && remoteStream) {
-            remoteVideoRef.current.srcObject = remoteStream;
+        const remoteVideoElement = remoteVideoRef.current;
+
+        if (!remoteVideoElement) {
+            return;
         }
+
+        if (!remoteStream) {
+            remoteVideoElement.srcObject = null;
+            return;
+        }
+
+        remoteVideoElement.srcObject = remoteStream;
+        remoteVideoElement.muted = true;
+
+        const playRemoteVideo = async () => {
+            try {
+                await remoteVideoElement.play();
+            } catch (playError) {
+                console.error("Failed to autoplay remote video:", playError);
+            }
+        };
+
+        void playRemoteVideo();
     }, [remoteStream]);
 
-    const getConnectionStatusText = () => {
-        if (!remoteStream) {
-            return "Waiting for peer...";
+    useEffect(() => {
+        const remoteVideoElement = remoteVideoRef.current;
+        if (!remoteVideoElement) {
+            return;
         }
-        return connectionStatus;
-    };
 
-    const statusText = getConnectionStatusText();
+        remoteVideoElement.muted = isRemoteAudioMuted;
+    }, [isRemoteAudioMuted]);
+
+    const handleToggleRemoteAudio = useCallback(async () => {
+        const remoteVideoElement = remoteVideoRef.current;
+        if (!remoteVideoElement) {
+            return;
+        }
+
+        const nextMutedState = !isRemoteAudioMuted;
+        remoteVideoElement.muted = nextMutedState;
+        setIsRemoteAudioMuted(nextMutedState);
+
+        if (!nextMutedState) {
+            try {
+                await remoteVideoElement.play();
+            } catch (error) {
+                console.warn("Remote audio could not be enabled:", error);
+                remoteVideoElement.muted = true;
+                setIsRemoteAudioMuted(true);
+            }
+        }
+    }, [isRemoteAudioMuted]);
+
+    const handleRequestControl = useCallback(() => {
+        onRequestControl();
+        if (!isAudioEnabled) {
+            onToggleAudio();
+        }
+        if (!isVideoEnabled) {
+            onToggleVideo();
+        }
+        if (isRemoteAudioMuted) {
+            handleToggleRemoteAudio();
+        }
+    }, [
+        onRequestControl,
+        onToggleAudio,
+        onToggleVideo,
+        isAudioEnabled,
+        isVideoEnabled,
+        isRemoteAudioMuted,
+    ]);
+
+    const statusText = remoteStream ? "" : "Waiting for peer...";
 
     return (
         <div className={styles.section}>
@@ -63,6 +116,7 @@ export default function VideoSection({
                         ref={remoteVideoRef}
                         autoPlay
                         playsInline
+                        muted={isRemoteAudioMuted}
                         className={styles.video}
                     />
                     <div className={styles.videoLabel}>Remote Video</div>
@@ -71,32 +125,31 @@ export default function VideoSection({
                             {statusText}
                         </div>
                     )}
+                    <button
+                        type="button"
+                        className={styles.enableAudioButton}
+                        onClick={() => {
+                            void handleToggleRemoteAudio();
+                        }}
+                    >
+                        {isRemoteAudioMuted ? "Unmute audio" : "Mute audio"}
+                    </button>
                 </div>
-
+                {!hasControl && (
+                    <RequestControlButton onClick={handleRequestControl} />
+                )}
                 {hasControl && (
-                    <div className={`${styles.videoWrapper} ${styles.local}`}>
-                        <video
-                            ref={localVideoRef}
-                            autoPlay
-                            playsInline
-                            muted
-                            className={styles.video}
-                        />
-                        <div className={styles.videoLabel}>You</div>
-                    </div>
+                    <LocalVideo
+                        localStream={localStream}
+                        onToggleAudio={onToggleAudio}
+                        onToggleVideo={onToggleVideo}
+                        isAudioEnabled={isAudioEnabled}
+                        isVideoEnabled={isVideoEnabled}
+                    />
                 )}
             </div>
-
-            <StreamingControls
-                hasControl={hasControl}
-                isControlRequestPending={isControlRequestPending}
-                onRequestControl={onRequestControl}
-                onToggleAudio={onToggleAudio}
-                onToggleVideo={onToggleVideo}
-                onLeave={onLeave}
-                isAudioEnabled={isAudioEnabled}
-                isVideoEnabled={isVideoEnabled}
-            />
         </div>
     );
 }
+
+export default VideoSection;

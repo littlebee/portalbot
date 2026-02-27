@@ -1,25 +1,23 @@
 import { useState } from "react";
 import styles from "./JoinSpace.module.css";
+import type { Space } from "@/types/space";
 import { useSpaces } from "@/hooks/useSpaces";
 
 interface JoinSpaceProps {
-    onJoin: (spaceName: string) => void;
+    onJoin: (space: Space) => void;
     disabled?: boolean;
 }
 
-export default function JoinSpace({
-    onJoin,
-    disabled = false,
-}: JoinSpaceProps) {
+export function JoinSpace({ onJoin, disabled = false }: JoinSpaceProps) {
     const { enabledSpaces, loading, error } = useSpaces();
     const [joiningSpaceId, setJoiningSpaceId] = useState<string | null>(null);
 
-    const handleSpaceClick = (spaceId: string) => {
+    const handleSpaceClick = (space: Space) => {
         if (joiningSpaceId || disabled) return;
 
-        setJoiningSpaceId(spaceId);
+        setJoiningSpaceId(space.id);
         try {
-            onJoin(spaceId);
+            onJoin(space);
         } finally {
             setJoiningSpaceId(null);
         }
@@ -56,9 +54,7 @@ export default function JoinSpace({
                                     className={styles.spaceListItem}
                                 >
                                     <button
-                                        onClick={() =>
-                                            handleSpaceClick(space.id)
-                                        }
+                                        onClick={() => handleSpaceClick(space)}
                                         disabled={
                                             joiningSpaceId !== null || disabled
                                         }
@@ -123,3 +119,5 @@ export default function JoinSpace({
         </div>
     );
 }
+
+export default JoinSpace;
