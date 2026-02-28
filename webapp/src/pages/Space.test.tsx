@@ -67,7 +67,7 @@ describe("Space", () => {
 
         render(<Space spaceId="lobby" onExitSpace={onExitSpace} />);
 
-        await user.click(screen.getByRole("button"));
+        await user.click(screen.getByRole("button", { name: /leave space/i }));
 
         expect(mockUseWebRTCReturn.leaveSpace).toHaveBeenCalled();
         expect(onExitSpace).toHaveBeenCalled();

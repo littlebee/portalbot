@@ -7,7 +7,11 @@ interface LeaveSpaceButtonProps {
 
 export function LeaveSpaceButton({ onLeave }: LeaveSpaceButtonProps) {
     return (
-        <button className={styles.leaveButton} onClick={onLeave}>
+        <button
+            className={styles.leaveButton}
+            onClick={onLeave}
+            aria-label="Leave space"
+        >
             <ExitSignIcon />
         </button>
     );
