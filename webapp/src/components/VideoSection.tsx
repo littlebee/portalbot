@@ -2,6 +2,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import styles from "./VideoSection.module.css";
 import LocalVideo from "./LocalVideo";
+
+// TODO: I really hate that request control button is composed
+// in this component.  It is totally unrelated to Video with
+// the exception that when a user requests control, we also
+// need to enable their local video and audio, and unmute the
+// remote audio.  See handleRequestControl below.
 import RequestControlButton from "./RequestControlButton";
 
 interface VideoSectionProps {

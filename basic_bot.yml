@@ -31,6 +31,8 @@ services:
       BB_CAMERA_MODULE: "basic_bot.commons.camera_picamera"
       BB_USE_ARECORD: "true"
 
+  - name: "servo_control"
+    run: "python -m basic_bot.services.servo_control"
 
   - name: "system_stats"
     run: "python -m basic_bot.services.system_stats"
