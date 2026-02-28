@@ -176,6 +176,31 @@ async def handle_leave_space(websocket: WebSocket, client_id: str, data: dict):
     await space_manager.leave_space(client_id)
 
 
+async def handle_servo_config(websocket: WebSocket, client_id: str, data: dict):
+    """Validate that the servo config data is only sent by the robot"""
+    servo_config = data.get("servo_config")
+    if not servo_config:
+        await connection_manager.send_message(
+            websocket, "error", {"message": "Servo config data is required"}
+        )
+        return
+
+    logger.debug(f"Received servo config update from {client_id}: {servo_config}")
+
+    if not space_manager.update_servo_config(client_id, servo_config):
+        await connection_manager.send_message(
+            websocket, "error", {"message": "Unauthorized"}
+        )
+        return
+
+    await space_manager.broadcast_to_space(
+        client_id,
+        "servo_config",
+        {"servo_config": servo_config},
+        exclude_client_id=client_id,
+    )
+
+
 async def handle_message(websocket: WebSocket, client_id: str, message: dict):
     """Route incoming messages to appropriate handlers"""
     message_type: str = str(message.get("type"))
@@ -201,6 +226,7 @@ async def handle_message(websocket: WebSocket, client_id: str, message: dict):
         "control_granted": robot_control_handler.handle_control_granted,
         "control_release": robot_control_handler.handle_control_release,
         "set_angles": robot_control_handler.handle_set_angles,
+        "servo_config": handle_servo_config,
     }
 
     handler = handlers.get(message_type)
