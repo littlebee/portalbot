@@ -5,7 +5,7 @@ import { SpaceHeader } from "@/components/SpaceHeader";
 import { VideoSection } from "@/components/VideoSection";
 import { useSpace } from "@/hooks/useSpace";
 import { useWebRTC } from "@/hooks/useWebRTC";
-import { PanTilt } from "@/components/PanTilt";
+// import { PanTilt } from "@/components/PanTilt";
 
 export interface SpaceProps {
     spaceId: string;
@@ -79,8 +79,8 @@ export function Space({ spaceId, onExitSpace }: SpaceProps) {
                 isVideoEnabled={webrtc.isVideoEnabled}
                 onToggleVideo={webrtc.toggleVideo}
             />
-
-            {webrtc.hasControl && <PanTilt />}
+            {/*
+            {webrtc.hasControl && <PanTilt />} */}
 
             {webrtc.error && (
                 <div className={styles.errorMessage}>{webrtc.error}</div>
