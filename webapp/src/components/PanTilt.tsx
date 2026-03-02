@@ -12,7 +12,7 @@ robot.
 
 */
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import st from "./PanTilt.module.css";
 
@@ -62,19 +62,10 @@ export function PanTilt({
         );
     }, [panAngle, tiltAngle, panConfig, tiltConfig]);
 
-    const handleTouch = useCallback(
-        (
-            event:
-                | React.MouseEvent<HTMLDivElement>
-                | React.TouchEvent<HTMLDivElement>,
-        ) => {
-            const isTouch = isTouchEvent(event);
-            const clientX = isTouch ? event.touches[0].clientX : event.clientX;
-            const clientY = isTouch ? event.touches[0].clientY : event.clientY;
+    const [fingerDown, setFingerDown] = useState(false);
 
-            const rect = event.currentTarget.getBoundingClientRect();
-            const x = clientX - rect.left;
-            const y = clientY - rect.top;
+    const sendXYToPanTilt = useCallback(
+        (x: number, y: number) => {
             const [newPanAngle, newTiltAngle] = mapXYToPanTilt(
                 x,
                 y,
@@ -82,11 +73,82 @@ export function PanTilt({
                 tiltConfig,
                 TOUCH_GRID_SIZE,
             );
-            console.log({ x, y, newPanAngle, newTiltAngle });
             onAngleChange?.(newPanAngle, newTiltAngle);
         },
-        [panConfig, tiltConfig],
+        [panConfig, tiltConfig, onAngleChange],
     );
+
+    const mouseEventToXY = useCallback(
+        (event: React.MouseEvent<HTMLDivElement>) => {
+            const rect = event.currentTarget.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+            return [x, y];
+        },
+        [],
+    );
+
+    const touchEventToXY = useCallback(
+        (event: React.TouchEvent<HTMLDivElement>) => {
+            const rect = event.currentTarget.getBoundingClientRect();
+            const x = event.touches[0].clientX - rect.left;
+            const y = event.touches[0].clientY - rect.top;
+            return [x, y];
+        },
+        [],
+    );
+
+    const handleMouseDown = useCallback(
+        (event: React.MouseEvent<HTMLDivElement>) => {
+            const [x, y] = mouseEventToXY(event);
+            sendXYToPanTilt(x, y);
+            setFingerDown(true);
+        },
+        [sendXYToPanTilt],
+    );
+
+    const handleMouseMove = useCallback(
+        (event: React.MouseEvent<HTMLDivElement>) => {
+            if (!fingerDown) {
+                return;
+            }
+            const [x, y] = mouseEventToXY(event);
+            sendXYToPanTilt(x, y);
+        },
+        [fingerDown, mouseEventToXY, sendXYToPanTilt],
+    );
+
+    const handleMouseUp = useCallback(() => {
+        setFingerDown(false);
+    }, []);
+
+    const handleTouchStart = useCallback(
+        (event: React.TouchEvent<HTMLDivElement>) => {
+            const [x, y] = touchEventToXY(event);
+            sendXYToPanTilt(x, y);
+        },
+        [sendXYToPanTilt],
+    );
+
+    const handleTouchMove = useCallback(
+        (event: React.TouchEvent<HTMLDivElement>) => {
+            const [x, y] = touchEventToXY(event);
+            sendXYToPanTilt(x, y);
+        },
+        [touchEventToXY, sendXYToPanTilt],
+    );
+
+    const handleTouchEnd = useCallback(() => {
+        setFingerDown(false);
+    }, []);
+
+    const handleTouchCancel = useCallback(() => {
+        setFingerDown(false);
+    }, []);
+
+    const handleMouseLeave = useCallback(() => {
+        setFingerDown(false);
+    }, []);
 
     return (
         <div className={st.bbrPanTilt} data-testid="pan-tilt">
@@ -95,8 +157,14 @@ export function PanTilt({
             <div className={st.innerContainer}>
                 <div
                     className={st.touchGrid}
-                    onClick={handleTouch}
-                    onTouchEnd={handleTouch}
+                    onMouseDown={handleMouseDown}
+                    onMouseMove={handleMouseMove}
+                    onMouseUp={handleMouseUp}
+                    onMouseLeave={handleMouseLeave}
+                    onTouchStart={handleTouchStart}
+                    onTouchMove={handleTouchMove}
+                    onTouchEnd={handleTouchEnd}
+                    onTouchCancel={handleTouchCancel}
                 >
                     <div
                         className={st.angleXY}

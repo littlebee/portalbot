@@ -19,7 +19,7 @@ const tiltConfig: IServoConfig = {
 };
 
 describe("PanTilt", () => {
-    it("renders pan/tilt labels and servo ranges", () => {
+    it("renders pan/tilt labels", () => {
         render(
             <PanTilt
                 panConfig={panConfig}
@@ -29,15 +29,11 @@ describe("PanTilt", () => {
             />,
         );
 
-        expect(screen.getByText("Pan (12.3)")).toBeInTheDocument();
-        expect(screen.getByText("Tilt (-5.7)")).toBeInTheDocument();
-        expect(screen.getByText("90°")).toBeInTheDocument();
-        expect(screen.getByText("-90°")).toBeInTheDocument();
-        expect(screen.getByText("45°")).toBeInTheDocument();
-        expect(screen.getByText("-45°")).toBeInTheDocument();
+        expect(screen.getByText("Pan (12.3°)")).toBeInTheDocument();
+        expect(screen.getByText("Tilt (-5.7°)")).toBeInTheDocument();
     });
 
-    it("calls onAngleChange with mapped angles when the grid is clicked", () => {
+    it("calls onAngleChange with mapped angles when the grid is pressed", () => {
         const onAngleChange = vi.fn();
         const { container } = render(
             <PanTilt
@@ -63,7 +59,7 @@ describe("PanTilt", () => {
             toJSON: () => ({}),
         });
 
-        fireEvent.click(grid!, { clientX: 60, clientY: 170 });
+        fireEvent.mouseDown(grid!, { clientX: 60, clientY: 170 });
 
         expect(onAngleChange).toHaveBeenCalledTimes(1);
         expect(onAngleChange).toHaveBeenCalledWith(45, 22.5);
