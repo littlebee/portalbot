@@ -325,9 +325,10 @@ class PortalbotService:
 
     async def handle_websocket_message(self, message_type: str, data: dict):
         """Handle messages from the public server"""
-
         if message_type == "joined_space":
             logger.info(f"Successfully joined space: {data.get('space')}")
+            servo_config = self.hub_state.get(["servo_config"])
+            await self.send_to_public_server("servo_config", servo_config)
 
         elif message_type == "control_request":
             # Someone wants to control the robot
@@ -365,10 +366,14 @@ class PortalbotService:
     ):
         """Called when hub state is updated"""
         # Check for vision frames
-        if "vision_frame" in msg_data:
-            # Store the latest frame from the robot's camera
-            # In a real implementation, this would be sent via WebRTC
-            self.robot_video_frame = msg_data["vision_frame"]
+        if "servo_config" in msg_data:
+            servo_config = msg_data["servo_config"]
+            logger.debug(f"Received servo config update from hub: {servo_config}")
+            asyncio.create_task(
+                self.send_to_public_server(
+                    "servo_config", {"servo_config": servo_config}
+                )
+            )
 
     async def async_main(self):
         """Main async loop"""

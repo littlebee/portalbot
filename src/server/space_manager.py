@@ -27,6 +27,7 @@ class SpaceManager:
         self.spaces_config = spaces_config
         self.connection_manager = connection_manager
         self.active_spaces: Dict[str, Set[str]] = {}  # space_name -> Set[client_id]
+        self.servo_configs: Dict[str, dict] = {}  # space_name -> servo_config
 
     async def join_space(
         self, websocket: WebSocket, client_id: str, space_id: str
@@ -91,6 +92,7 @@ class SpaceManager:
                 "participants": list(self.active_spaces[space_id]),
             },
         )
+        await self.send_servo_config_to_client(client_id)
 
         # Notify other participants
         await self.broadcast_to_space(
@@ -157,3 +159,40 @@ class SpaceManager:
                 len(participants) for participants in self.active_spaces.values()
             ),
         }
+
+    def is_robot_in_space(self, space_name: str, client_id: str) -> bool:
+        """Check if a client is a robot in any space"""
+        in_space = (
+            space_name in self.active_spaces
+            and client_id in self.active_spaces[space_name]
+        )
+        return in_space and self.connection_manager.is_robot(client_id)
+
+    def update_servo_config(self, client_id: str, servo_config: dict):
+        """Add or update servo configuration for a space"""
+        space_name = self.connection_manager.get_client_space(client_id)
+        if not space_name:
+            print(f"Cannot add servo config: client {client_id} is not in a space")
+            return False
+        if not self.is_robot_in_space(space_name, client_id):
+            print(f"Unauthorized servo config update attempt from {client_id}")
+            return False
+
+        self.servo_configs[space_name] = servo_config
+        print(f"Updated servo config for space {space_name}: {servo_config}")
+        return True
+
+    async def send_servo_config_to_client(self, client_id: str):
+        """Send the current servo config for the client's space"""
+        space_name = self.connection_manager.get_client_space(client_id)
+        if not space_name:
+            print(f"Cannot send servo config: client {client_id} is not in a space")
+            return
+        servo_config = self.servo_configs.get(space_name)
+        if not servo_config:
+            print(f"No servo config found for space {space_name}")
+            return
+
+        await self.connection_manager.send_to_client(
+            client_id, "servo_config", servo_config
+        )

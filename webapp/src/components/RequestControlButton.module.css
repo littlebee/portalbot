@@ -1,0 +1,17 @@
+.requestControlButton {
+    position: absolute;
+    bottom: 20px;
+    right: 10px;
+    height: 120px;
+    width: 120px;
+    border-radius: 50%;
+
+    background-color: #007bff;
+    color: white;
+    padding: 10px 20px;
+    font-size: 24px;
+    cursor: pointer;
+
+    box-shadow: var(--shadow-lg);
+    border: 2px solid var(--border-color);
+}

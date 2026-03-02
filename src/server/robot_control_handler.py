@@ -300,14 +300,7 @@ class RobotControlHandler:
 
     async def handle_set_angles(self, websocket: WebSocket, client_id: str, data: dict):
         """Handle set_angles command from human to robot"""
-        robot_id = data.get("robot_id")
         angles = data.get("angles")  # e.g., {"pan": 90, "tilt": 45}
-
-        if not robot_id or not self.connection_manager.is_robot(robot_id):
-            await self.connection_manager.send_message(
-                websocket, "error", {"message": "Invalid robot_id"}
-            )
-            return
 
         if not angles:
             await self.connection_manager.send_message(
@@ -315,9 +308,34 @@ class RobotControlHandler:
             )
             return
 
-        # Verify this human controls the robot
+        space_id = self.connection_manager.get_client_space(client_id)
+
+        if not space_id:
+            await self.connection_manager.send_message(
+                websocket,
+                "error",
+                {"message": "You must be in a space to control a robot"},
+            )
+            return
+
+        robot_id = self.connection_manager.find_robot_by_controller(client_id)
+        if not robot_id:
+            logger.warning(
+                "Client %s attempted to set angles without controlling a robot",
+                client_id,
+            )
+            await self.connection_manager.send_message(
+                websocket, "error", {"message": "You do not control this robot"}
+            )
+            return
+
         controller_id = self.connection_manager.get_robot_controller(robot_id)
         if controller_id != client_id:
+            logger.warning(
+                "Client %s attempted to set angles for robot %s which they do not control",
+                client_id,
+                robot_id,
+            )
             await self.connection_manager.send_message(
                 websocket, "error", {"message": "You do not control this robot"}
             )

@@ -4,7 +4,7 @@ default_image_url: "/images/default-space.jpg"
 spaces:
   - id: "bees-workbench"
     display_name: "Bee's Workbench"
-    description: "Prototype PortalBot 2d Device sitting on my workbench"
+    description: "Prototype PortalBot 2dof Device sitting on my workbench"
     image_url: "/images/bees-workbench.png"
     max_participants: 2
     enabled: true

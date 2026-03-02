@@ -9,9 +9,21 @@ export const WEBRTC_CONFIG: RTCConfiguration = {
         {
             urls: "stun:stun.l.google.com:19302",
         },
-        // Custom TURN server for NAT traversal
+        // TURN over UDP
         {
-            urls: "turn:ec2-3-134-87-34.us-east-2.compute.amazonaws.com:3478",
+            urls: "turn:ec2-3-134-87-34.us-east-2.compute.amazonaws.com:3478?transport=udp",
+            username: "user",
+            credential: "pass",
+        },
+        // TURN over TCP
+        {
+            urls: "turn:ec2-3-134-87-34.us-east-2.compute.amazonaws.com:3478?transport=tcp",
+            username: "user",
+            credential: "pass",
+        },
+        // TURN over TLS (recommended for restrictive networks and Safari)
+        {
+            urls: "turns:ec2-3-134-87-34.us-east-2.compute.amazonaws.com:5349?transport=tcp",
             username: "user",
             credential: "pass",
         },

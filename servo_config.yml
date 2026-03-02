@@ -1,0 +1,9 @@
+servos:
+  - name: pan
+    channel: 0
+    motor_range: 180
+  - name: tilt
+    channel: 1
+    motor_range: 180
+    # The device has a base that it will collide with if not limited.
+    min_angle: 65

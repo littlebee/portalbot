@@ -5,28 +5,20 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+
 import type {
-    AnswerData,
-    ConnectedData,
     ConnectionStatus,
     ErrorData,
-    IceCandidateData,
     JoinSpaceData,
-    UserJoinedData,
-    UserLeftData,
     WebRTCMessage,
 } from "@/types/webrtc";
-import {
-    INITIAL_RECONNECT_DELAY,
-    MAX_RECONNECT_ATTEMPTS,
-    MEDIA_CONSTRAINTS,
-    WEBSOCKET_PING_INTERVAL,
-    getWebSocketUrl,
-} from "@/services/webrtc-config";
 
-import { WebRTCPeer } from "@/services/webrtcPeer";
+import type { IServoConfig, IServoConfigByName } from "@/types/servo";
 
-let _gLocalStream: MediaStream | null = null;
+import type { WebRTCPeer } from "@/services/webrtcPeer";
+import { useLocalMedia } from "@/hooks/webrtc/useLocalMedia";
+import { usePeerSessions } from "@/hooks/webrtc/usePeerSessions";
+import { useSignalingSocket } from "@/hooks/webrtc/useSignalingSocket";
 
 export interface WebRTCState {
     viewPeer: WebRTCPeer | null;
@@ -37,6 +29,7 @@ export interface WebRTCState {
     statusText: string;
     clientId: string | null;
     currentSpace: string | null;
+    servoConfigByName: IServoConfigByName | null;
     ws: WebSocket | null;
 
     // Media streams
@@ -60,268 +53,79 @@ export interface WebRTCActions {
     toggleAudio: () => void;
     toggleVideo: () => void;
     clearError: () => void;
+    sendAngles: (angles: { pan: number; tilt: number }) => void;
 }
 
 export interface UseWebRTCReturn extends WebRTCState, WebRTCActions {}
 
 export function useWebRTC(): UseWebRTCReturn {
-    // Connection state
-    const [connectionStatus, setConnectionStatus] =
-        useState<ConnectionStatus>("disconnected");
-    const [statusText, setStatusText] = useState("Disconnected");
-    const [clientId, setClientId] = useState<string | null>(null);
     const [currentSpace, setCurrentSpace] = useState<string | null>(null);
-
-    // Media streams
-    const [localStream, setLocalStream] = useState<MediaStream | null>(null);
-    const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
-
-    // Media controls
-    const [isAudioEnabled, setIsAudioEnabled] = useState(true);
-    const [isVideoEnabled, setIsVideoEnabled] = useState(true);
-    const [hasControl, setHasControl] = useState(false);
-    const [isControlRequestPending, setIsControlRequestPending] =
-        useState(false);
-
-    // Error state
     const [error, setError] = useState<string | null>(null);
+    const [servoConfigByName, setServoConfigByName] =
+        useState<IServoConfigByName | null>(null);
 
-    // Refs for objects that shouldn't trigger re-renders
-    const wsRef = useRef<WebSocket | null>(null);
-    const viewPeerConnectionRef = useRef<WebRTCPeer | null>(null);
-    const controlPeerConnectionRef = useRef<WebRTCPeer | null>(null);
     const currentSpaceRef = useRef<string | null>(null);
-    const localStreamRef = useRef<MediaStream | null>(null);
-    const reconnectAttemptsRef = useRef(0);
-    const reconnectTimerRef = useRef<number | null>(null);
-    const pingIntervalRef = useRef<number | null>(null);
-    const intentionalDisconnectRef = useRef(false);
-    const hasControlRef = useRef(false);
     const joiningSpaceRef = useRef<string | null>(null);
 
-    const clearControlState = useCallback(() => {
-        hasControlRef.current = false;
-        setHasControl(false);
-        setIsControlRequestPending(false);
-    }, []);
-
-    // Update connection status
-    const updateConnectionStatus = useCallback(
-        (status: ConnectionStatus, text: string) => {
-            setConnectionStatus(status);
-            setStatusText(text);
-        },
-        [],
-    );
-
-    // Show error message
     const showError = useCallback((message: string) => {
         setError(message);
         setTimeout(() => setError(null), 5000);
     }, []);
 
-    // Clear error
     const clearError = useCallback(() => {
         setError(null);
     }, []);
 
-    const stopLocalMedia = useCallback(() => {
-        const streams = [localStreamRef.current, _gLocalStream].filter(
-            (stream): stream is MediaStream => stream !== null,
-        );
-        const seenStreamIds = new Set<string>();
-
-        streams.forEach((stream) => {
-            if (seenStreamIds.has(stream.id)) {
-                return;
-            }
-            seenStreamIds.add(stream.id);
-            stream.getTracks().forEach((track) => track.stop());
-        });
-
-        localStreamRef.current = null;
-        _gLocalStream = null;
-        setLocalStream(null);
-    }, []);
-
-    // Send message to signaling server
-    const sendMessage = useCallback((type: string, data: any = {}) => {
-        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-            wsRef.current.send(JSON.stringify({ type, data }));
-        } else {
-            console.error("WebSocket not connected, cannot send message");
-        }
-    }, []);
-
-    // Start ping interval
-    const startPingInterval = useCallback(() => {
-        if (pingIntervalRef.current) {
-            clearInterval(pingIntervalRef.current);
-        }
-        pingIntervalRef.current = window.setInterval(() => {
-            sendMessage("ping");
-        }, WEBSOCKET_PING_INTERVAL);
-    }, [sendMessage]);
-
-    // Stop ping interval
-    const stopPingInterval = useCallback(() => {
-        if (pingIntervalRef.current) {
-            clearInterval(pingIntervalRef.current);
-            pingIntervalRef.current = null;
-        }
-    }, []);
-
-    // Create peer connection
-    const createViewConnection = useCallback(() => {
-        if (viewPeerConnectionRef.current) {
-            viewPeerConnectionRef.current.close();
-        }
-
-        const pc = new WebRTCPeer("view-peer", sendMessage, setRemoteStream);
-        pc.createPeerConnection();
-
-        viewPeerConnectionRef.current = pc;
-
-        return pc;
-    }, []);
-
-    // We have been granted control of the robot, so we create
-    // a new peer connection from that offer that will be used
-    // for sending our AV tracks to the robot. This is separate
-    // from the view connection that we use to receive the robot's
-    // AV tracks, and is only used for sending our AV tracks when
-    // we have control of the robot.
-    const createControlConnection = useCallback(() => {
-        if (controlPeerConnectionRef.current) {
-            controlPeerConnectionRef.current.close();
-        }
-
-        console.log(
-            "Creating control peer connection with local stream:",
-            localStream,
-            _gLocalStream,
-        );
-        const pc = new WebRTCPeer(
-            "control-peer",
-            sendMessage,
-            undefined,
-            (state) => {
-                if (
-                    (state === "failed" || state === "disconnected") &&
-                    hasControlRef.current
-                ) {
-                    console.log(
-                        `Control peer entered ${state}; releasing control`,
-                    );
-                    hasControlRef.current = false;
-                    sendMessage("control_release", {});
-                }
-            },
-        );
-        pc.localStream = _gLocalStream;
-        pc.createPeerConnection();
-
-        controlPeerConnectionRef.current = pc;
-
-        return pc;
-    }, [sendMessage, localStream]);
-
-    // When we join a space, we create the peer connection and
-    // immediately create and send an offer.  The BB view service
-    // will answer with its AV tracks.  This is different than
-    // the offer offer we receive from the public server (next function)
-    // whenever we have be give control of the robot. The answer to the
-    // offer we receive from the public server is where we will
-    // attach our AV tracks.
-    const sendOffer = useCallback(async () => {
-        const pc = createViewConnection();
-        try {
-            const offer = await pc.createOffer();
-
-            console.log("Sending offer");
-            sendMessage("offer", {
-                space: currentSpace,
-                offer: offer,
-            });
-        } catch (err) {
-            console.error("Error creating offer:", err);
-            showError("Failed to create connection offer");
-        }
-    }, [currentSpace, sendMessage, showError]);
-
-    // When we are granted control of the robot, we send an offer
-    // to onboard UI via the public server -> portalbot service -> onboard UI.
-    const sendControlOffer = useCallback(async () => {
-        const pc = createControlConnection();
-        try {
-            pc.localStream = await _getLocalStream();
-            pc.addLocalTracks();
-            const offer = await pc.createOffer();
-
-            console.log("Sending control offer");
-            sendMessage("control_offer", {
-                space: currentSpace,
-                offer: offer,
-            });
-        } catch (err) {
-            console.error("Error creating control offer:", err);
-            showError("Failed to create control connection offer");
-        }
-    }, [currentSpace, sendMessage, showError]);
-
-    // Handle answer
-    const handleAnswer = useCallback(
-        async (data: AnswerData) => {
-            console.log("Received answer from public server: ", data);
-            try {
-                const pc = viewPeerConnectionRef.current;
-                if (pc) {
-                    await pc.handleAnswer(data);
-                }
-            } catch (err) {
-                console.error("Error handling answer:", err);
-                showError("Failed to handle connection answer");
-            }
+    const {
+        localStream,
+        isAudioEnabled,
+        isVideoEnabled,
+        getLocalStream,
+        stopLocalMedia,
+        toggleAudio,
+        toggleVideo,
+    } = useLocalMedia({
+        showError,
+        onGetLocalStreamError: () => {
+            joiningSpaceRef.current = null;
         },
-        [showError],
-    );
+    });
 
-    // Handle answer
-    const handleControlAnswer = useCallback(
-        async (data: AnswerData) => {
-            console.log("Received control answer from public server: ", data);
-            try {
-                const pc = controlPeerConnectionRef.current;
-                if (pc) {
-                    await pc.handleAnswer(data);
-                }
-            } catch (err) {
-                console.error("Error handling controlanswer:", err);
-                showError("Failed to handle connection answer");
-            }
-        },
-        [showError],
-    );
+    const {
+        ws,
+        connectionStatus,
+        statusText,
+        clientId,
+        sendMessage,
+        setMessageHandler,
+    } = useSignalingSocket({ showError });
 
-    // Handle ICE candidate
-    const handleIceCandidate = useCallback(async (data: IceCandidateData) => {
-        try {
-            await viewPeerConnectionRef.current?.handleIceCandidate(data);
-        } catch (err) {
-            console.error("Error adding ICE candidate:", err);
-        }
-    }, []);
+    const {
+        viewPeer,
+        controlPeer,
+        remoteStream,
+        hasControl,
+        isControlRequestPending,
+        requestControl,
+        sendOffer,
+        handleAnswer,
+        handleControlAnswer,
+        handleIceCandidate,
+        handleRobotJoined,
+        handleRobotLeft,
+        handleControlGranted,
+        handleControlReleased,
+        markControlPending,
+        clearControlRequestPending,
+        releaseControlIfHeld,
+        cleanupPeers,
+    } = usePeerSessions({
+        sendMessage,
+        showError,
+        getCurrentSpace: () => currentSpaceRef.current,
+        getLocalStream,
+    });
 
-    const requestControl = useCallback(() => {
-        if (hasControlRef.current || isControlRequestPending) {
-            return;
-        }
-        setIsControlRequestPending(true);
-        console.log("Requesting control");
-        sendMessage("control_request", {});
-    }, [isControlRequestPending, sendMessage]);
-
-    // This browser joined
     const handleJoinedSpace = useCallback(
         async (data: JoinSpaceData) => {
             console.log("Joined space:", data);
@@ -333,85 +137,52 @@ export function useWebRTC(): UseWebRTCReturn {
         [sendOffer],
     );
 
-    // IF the robot goes offline or leaves the space, we get notified here
-    // when it later rejoins the space
-    const handleRobotJoined = useCallback(
-        async (_data: UserJoinedData) => {
-            console.log("Robot joined, starting WebRTC connection");
-            await sendOffer();
+    const handleServoConfigUpdate = useCallback(
+        (data: Array<IServoConfig>) => {
+            const configByName: IServoConfigByName = {};
+            data.forEach((config) => {
+                configByName[config.name] = config;
+            });
+            setServoConfigByName(configByName);
         },
-        [sendOffer],
+        [setServoConfigByName],
     );
 
-    // Handle user left
-    const handleRobotLeft = useCallback(
-        (_data: UserLeftData) => {
-            console.log("Robot left the space");
-            showError("The robot has left the space. Please standby...");
-
-            viewPeerConnectionRef.current?.close();
-            viewPeerConnectionRef.current = null;
-
-            clearControlState();
-            controlPeerConnectionRef.current?.close();
-            controlPeerConnectionRef.current = null;
-        },
-        [clearControlState, showError],
-    );
-
-    const handleControlGranted = useCallback(async () => {
-        hasControlRef.current = true;
-        setHasControl(true);
-        setIsControlRequestPending(false);
-        await sendControlOffer();
-    }, [sendControlOffer]);
-
-    const handleControlReleased = useCallback(() => {
-        clearControlState();
-        controlPeerConnectionRef.current?.close();
-        controlPeerConnectionRef.current = null;
-    }, [clearControlState]);
-
-    // Handle WebSocket messages
     const handleMessage = useCallback(
         (message: WebRTCMessage) => {
             const { type, data } = message;
-
             console.log("Received message:", type, data);
 
             switch (type) {
                 case "connected":
-                    setClientId((data as ConnectedData).sid);
-                    console.log("Client ID:", (data as ConnectedData).sid);
                     break;
 
-                case "joined_space": {
-                    handleJoinedSpace(data as JoinSpaceData);
+                case "joined_space":
+                    void handleJoinedSpace(data as JoinSpaceData);
                     break;
-                }
 
                 case "user_joined":
-                    handleRobotJoined(data as UserJoinedData);
+                    void handleRobotJoined(data);
                     break;
 
                 case "user_left":
-                    handleRobotLeft(data as UserLeftData);
+                    handleRobotLeft(data);
                     break;
 
                 case "answer":
-                    handleAnswer(data as AnswerData);
+                    void handleAnswer(data);
                     break;
 
                 case "control_answer":
-                    handleControlAnswer(data as AnswerData);
+                    void handleControlAnswer(data);
                     break;
 
                 case "control_granted":
-                    handleControlGranted();
+                    void handleControlGranted();
                     break;
 
                 case "control_pending":
-                    setIsControlRequestPending(true);
+                    markControlPending();
                     break;
 
                 case "control_released":
@@ -419,17 +190,20 @@ export function useWebRTC(): UseWebRTCReturn {
                     break;
 
                 case "ice_candidate":
-                    handleIceCandidate(data as IceCandidateData);
+                    void handleIceCandidate(data);
+                    break;
+
+                case "servo_config":
+                    handleServoConfigUpdate(data.servos as Array<IServoConfig>);
                     break;
 
                 case "error":
                     console.error("Server error:", (data as ErrorData).message);
-                    setIsControlRequestPending(false);
+                    clearControlRequestPending();
                     showError((data as ErrorData).message);
                     break;
 
                 case "pong":
-                    // Ping response received
                     break;
 
                 default:
@@ -437,125 +211,20 @@ export function useWebRTC(): UseWebRTCReturn {
             }
         },
         [
-            handleRobotJoined,
-            handleRobotLeft,
+            clearControlRequestPending,
+            handleAnswer,
             handleControlAnswer,
             handleControlGranted,
             handleControlReleased,
-            handleAnswer,
             handleIceCandidate,
+            handleJoinedSpace,
+            handleRobotJoined,
+            handleRobotLeft,
+            markControlPending,
             showError,
         ],
     );
 
-    // Attempt reconnection
-    const attemptReconnect = useCallback(() => {
-        reconnectAttemptsRef.current++;
-        const delay =
-            INITIAL_RECONNECT_DELAY *
-            Math.pow(2, reconnectAttemptsRef.current - 1);
-
-        console.log(
-            `Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current}/${MAX_RECONNECT_ATTEMPTS})`,
-        );
-        updateConnectionStatus(
-            "disconnected",
-            `Reconnecting in ${Math.round(delay / 1000)}s...`,
-        );
-
-        reconnectTimerRef.current = window.setTimeout(() => {
-            connectToSignalingServer();
-        }, delay);
-    }, [updateConnectionStatus]);
-
-    // Connect to signaling server
-    const connectToSignalingServer = useCallback(() => {
-        const wsUrl = getWebSocketUrl();
-        console.log("Connecting to WebSocket:", wsUrl);
-
-        const ws = new WebSocket(wsUrl);
-        wsRef.current = ws;
-
-        ws.onopen = () => {
-            console.log("WebSocket connected");
-            updateConnectionStatus("connected", "Connected to server");
-            reconnectAttemptsRef.current = 0;
-            startPingInterval();
-        };
-
-        ws.onclose = (event) => {
-            console.log("WebSocket closed:", event.code, event.reason);
-            updateConnectionStatus("disconnected", "Disconnected");
-            stopPingInterval();
-
-            if (
-                !intentionalDisconnectRef.current &&
-                reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS
-            ) {
-                attemptReconnect();
-            } else if (reconnectAttemptsRef.current >= MAX_RECONNECT_ATTEMPTS) {
-                showError("Failed to reconnect after multiple attempts");
-            }
-        };
-
-        ws.onerror = (err) => {
-            console.error("WebSocket error:", err);
-            showError("WebSocket connection error");
-        };
-
-        ws.onmessage = (event) => {
-            try {
-                const message = JSON.parse(event.data);
-                handleMessage(message);
-            } catch (err) {
-                console.error("Failed to parse message:", err);
-            }
-        };
-    }, [
-        updateConnectionStatus,
-        startPingInterval,
-        stopPingInterval,
-        attemptReconnect,
-        showError,
-        handleMessage,
-    ]);
-
-    const _getLocalStream = useCallback(async () => {
-        try {
-            let stream = localStreamRef.current ?? _gLocalStream;
-            if (
-                stream &&
-                stream
-                    .getTracks()
-                    .every((track) => track.readyState === "ended")
-            ) {
-                stream = null;
-            }
-            if (!stream) {
-                // Get local media
-                stream =
-                    await navigator.mediaDevices.getUserMedia(
-                        MEDIA_CONSTRAINTS,
-                    );
-                console.log("Obtained local media stream", stream);
-                setLocalStream(stream);
-                localStreamRef.current = stream;
-                _gLocalStream = stream;
-            }
-            return stream;
-        } catch (err) {
-            joiningSpaceRef.current = null;
-            console.error("Error getting local media stream:    ", err);
-            showError(
-                `Failed to access camera/microphone: ${
-                    err instanceof Error ? err.message : "Unknown error"
-                }`,
-            );
-            throw err;
-        }
-    }, [showError, setLocalStream]);
-
-    // Join space
     const joinSpace = useCallback(
         (spaceName: string) => {
             const trimmedSpaceName = spaceName.trim();
@@ -573,8 +242,8 @@ export function useWebRTC(): UseWebRTCReturn {
             }
 
             joiningSpaceRef.current = trimmedSpaceName;
+
             try {
-                // Join the space
                 sendMessage("join_space", { space: trimmedSpaceName });
             } catch (err) {
                 joiningSpaceRef.current = null;
@@ -589,95 +258,62 @@ export function useWebRTC(): UseWebRTCReturn {
         [sendMessage, showError],
     );
 
-    // We are leaving the space...
     const leaveSpace = useCallback(() => {
-        if (hasControlRef.current) {
-            hasControlRef.current = false;
-            sendMessage("control_release", {});
+        releaseControlIfHeld();
+
+        if (currentSpaceRef.current) {
+            sendMessage("leave_space", { space: currentSpaceRef.current });
         }
 
-        if (currentSpace) {
-            sendMessage("leave_space", { space: currentSpace });
-        }
         joiningSpaceRef.current = null;
         currentSpaceRef.current = null;
-        clearControlState();
 
-        viewPeerConnectionRef.current?.close();
-        viewPeerConnectionRef.current = null;
-
-        controlPeerConnectionRef.current?.close();
-        controlPeerConnectionRef.current = null;
-
+        cleanupPeers();
         stopLocalMedia();
         setCurrentSpace(null);
-    }, [clearControlState, currentSpace, sendMessage, stopLocalMedia]);
+    }, [cleanupPeers, releaseControlIfHeld, sendMessage, stopLocalMedia]);
 
-    // Toggle audio
-    const toggleAudio = useCallback(() => {
-        if (localStream) {
-            const audioTrack = localStream.getAudioTracks()[0];
-            audioTrack.enabled = !audioTrack.enabled;
-            setIsAudioEnabled(audioTrack.enabled);
-        }
-    }, [localStream]);
+    const sendAngles = useCallback(
+        (angles: { pan: number; tilt: number }) => {
+            if (!currentSpaceRef.current) {
+                console.warn("Cannot send angles: not currently in a space");
+                return;
+            }
+            sendMessage("set_angles", { angles });
+        },
+        [sendMessage],
+    );
 
-    // Toggle video
-    const toggleVideo = useCallback(() => {
-        if (localStream) {
-            const videoTrack = localStream.getVideoTracks()[0];
-            videoTrack.enabled = !videoTrack.enabled;
-            setIsVideoEnabled(videoTrack.enabled);
-        }
-    }, [localStream]);
-
-    // Connect on mount
     useEffect(() => {
-        connectToSignalingServer();
+        setMessageHandler(handleMessage);
 
-        // Cleanup on unmount
         return () => {
-            intentionalDisconnectRef.current = true;
-            stopPingInterval();
-
-            if (reconnectTimerRef.current) {
-                clearTimeout(reconnectTimerRef.current);
-            }
-            if (wsRef.current) {
-                wsRef.current.close();
-            }
-
-            if (viewPeerConnectionRef.current) {
-                viewPeerConnectionRef.current.close();
-                viewPeerConnectionRef.current = null;
-            }
-
-            if (controlPeerConnectionRef.current) {
-                controlPeerConnectionRef.current.close();
-                controlPeerConnectionRef.current = null;
-            }
-            stopLocalMedia();
+            setMessageHandler(null);
         };
-    }, []);
+    }, [handleMessage, setMessageHandler]);
 
     useEffect(() => {
         currentSpaceRef.current = currentSpace;
     }, [currentSpace]);
 
     useEffect(() => {
-        localStreamRef.current = localStream;
-    }, [localStream]);
+        return () => {
+            cleanupPeers();
+            stopLocalMedia();
+        };
+    }, [cleanupPeers, stopLocalMedia]);
 
     return {
         // Peers and connections
-        controlPeer: controlPeerConnectionRef.current,
-        viewPeer: viewPeerConnectionRef.current,
+        controlPeer,
+        viewPeer,
 
         // State
         connectionStatus,
         statusText,
         clientId,
         currentSpace,
+        servoConfigByName,
         localStream,
         remoteStream,
         isAudioEnabled,
@@ -685,7 +321,7 @@ export function useWebRTC(): UseWebRTCReturn {
         hasControl,
         isControlRequestPending,
         error,
-        ws: wsRef.current,
+        ws,
 
         // Actions
         joinSpace,
@@ -694,5 +330,6 @@ export function useWebRTC(): UseWebRTCReturn {
         toggleAudio,
         toggleVideo,
         clearError,
+        sendAngles,
     };
 }

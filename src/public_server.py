@@ -14,7 +14,7 @@ import sys
 import json
 import uuid
 from pathlib import Path
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -73,11 +73,12 @@ app = FastAPI(
 )
 
 # Define the list of allowed origins
+# origins = [
+#     "http://localhost:3000",
+#     "http://127.0.0.1:3000",
+# ]
 origins = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    # Add your public REST server's production URL here when deployed
-    # "https://api.yourdomain.com",
+    "*",
 ]
 
 # Add the CORS middleware
@@ -135,6 +136,23 @@ async def get_spaces():
     return spaces_config.to_dict()
 
 
+@app.get("/spaces/{space_id}")
+async def get_space(space_id: str):
+    """Get a single space by ID"""
+    space = spaces_config.get_space_by_id(space_id)
+    if space is None:
+        raise HTTPException(status_code=404, detail="Space not found")
+
+    return {
+        "id": space.id,
+        "display_name": space.display_name,
+        "description": space.description,
+        "image_url": space.image_url,
+        "max_participants": space.max_participants,
+        "enabled": space.enabled,
+    }
+
+
 async def handle_ping(websocket: WebSocket, client_id: str, data: dict):
     """Respond to ping with pong to keep connection alive"""
     await connection_manager.send_message(websocket, "pong", {})
@@ -156,6 +174,31 @@ async def handle_join_space(websocket: WebSocket, client_id: str, data: dict):
 async def handle_leave_space(websocket: WebSocket, client_id: str, data: dict):
     """Handle client leaving a space"""
     await space_manager.leave_space(client_id)
+
+
+async def handle_servo_config(websocket: WebSocket, client_id: str, data: dict):
+    """Validate that the servo config data is only sent by the robot"""
+    servo_config = data.get("servo_config")
+    if not servo_config:
+        await connection_manager.send_message(
+            websocket, "error", {"message": "Servo config data is required"}
+        )
+        return
+
+    logger.debug(f"Received servo config update from {client_id}: {servo_config}")
+
+    if not space_manager.update_servo_config(client_id, servo_config):
+        await connection_manager.send_message(
+            websocket, "error", {"message": "Unauthorized"}
+        )
+        return
+
+    await space_manager.broadcast_to_space(
+        client_id,
+        "servo_config",
+        {"servo_config": servo_config},
+        exclude_client_id=client_id,
+    )
 
 
 async def handle_message(websocket: WebSocket, client_id: str, message: dict):
@@ -183,6 +226,7 @@ async def handle_message(websocket: WebSocket, client_id: str, message: dict):
         "control_granted": robot_control_handler.handle_control_granted,
         "control_release": robot_control_handler.handle_control_release,
         "set_angles": robot_control_handler.handle_set_angles,
+        "servo_config": handle_servo_config,
     }
 
     handler = handlers.get(message_type)
