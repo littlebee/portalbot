@@ -194,5 +194,5 @@ class SpaceManager:
             return
 
         await self.connection_manager.send_to_client(
-            client_id, "servo_config", {"servo_config": servo_config}
+            client_id, "servo_config", servo_config
         )

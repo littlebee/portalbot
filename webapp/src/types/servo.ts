@@ -11,3 +11,7 @@ export interface IServoConfig {
     /** Maximum angle in degrees */
     max_angle: number;
 }
+
+export interface IServoConfigByName {
+    [key: string]: IServoConfig;
+}

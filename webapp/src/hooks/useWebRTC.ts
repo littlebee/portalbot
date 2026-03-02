@@ -12,6 +12,9 @@ import type {
     JoinSpaceData,
     WebRTCMessage,
 } from "@/types/webrtc";
+
+import type { IServoConfig, IServoConfigByName } from "@/types/servo";
+
 import type { WebRTCPeer } from "@/services/webrtcPeer";
 import { useLocalMedia } from "@/hooks/webrtc/useLocalMedia";
 import { usePeerSessions } from "@/hooks/webrtc/usePeerSessions";
@@ -26,6 +29,7 @@ export interface WebRTCState {
     statusText: string;
     clientId: string | null;
     currentSpace: string | null;
+    servoConfigByName: IServoConfigByName | null;
     ws: WebSocket | null;
 
     // Media streams
@@ -49,6 +53,7 @@ export interface WebRTCActions {
     toggleAudio: () => void;
     toggleVideo: () => void;
     clearError: () => void;
+    sendAngles: (angles: { pan: number; tilt: number }) => void;
 }
 
 export interface UseWebRTCReturn extends WebRTCState, WebRTCActions {}
@@ -56,6 +61,8 @@ export interface UseWebRTCReturn extends WebRTCState, WebRTCActions {}
 export function useWebRTC(): UseWebRTCReturn {
     const [currentSpace, setCurrentSpace] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [servoConfigByName, setServoConfigByName] =
+        useState<IServoConfigByName | null>(null);
 
     const currentSpaceRef = useRef<string | null>(null);
     const joiningSpaceRef = useRef<string | null>(null);
@@ -130,6 +137,17 @@ export function useWebRTC(): UseWebRTCReturn {
         [sendOffer],
     );
 
+    const handleServoConfigUpdate = useCallback(
+        (data: Array<IServoConfig>) => {
+            const configByName: IServoConfigByName = {};
+            data.forEach((config) => {
+                configByName[config.name] = config;
+            });
+            setServoConfigByName(configByName);
+        },
+        [setServoConfigByName],
+    );
+
     const handleMessage = useCallback(
         (message: WebRTCMessage) => {
             const { type, data } = message;
@@ -173,6 +191,10 @@ export function useWebRTC(): UseWebRTCReturn {
 
                 case "ice_candidate":
                     void handleIceCandidate(data);
+                    break;
+
+                case "servo_config":
+                    handleServoConfigUpdate(data.servos as Array<IServoConfig>);
                     break;
 
                 case "error":
@@ -251,6 +273,17 @@ export function useWebRTC(): UseWebRTCReturn {
         setCurrentSpace(null);
     }, [cleanupPeers, releaseControlIfHeld, sendMessage, stopLocalMedia]);
 
+    const sendAngles = useCallback(
+        (angles: { pan: number; tilt: number }) => {
+            if (!currentSpaceRef.current) {
+                console.warn("Cannot send angles: not currently in a space");
+                return;
+            }
+            sendMessage("set_angles", { angles });
+        },
+        [sendMessage],
+    );
+
     useEffect(() => {
         setMessageHandler(handleMessage);
 
@@ -280,6 +313,7 @@ export function useWebRTC(): UseWebRTCReturn {
         statusText,
         clientId,
         currentSpace,
+        servoConfigByName,
         localStream,
         remoteStream,
         isAudioEnabled,
@@ -296,5 +330,6 @@ export function useWebRTC(): UseWebRTCReturn {
         toggleAudio,
         toggleVideo,
         clearError,
+        sendAngles,
     };
 }

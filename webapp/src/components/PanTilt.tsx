@@ -90,21 +90,9 @@ export function PanTilt({
 
     return (
         <div className={st.bbrPanTilt} data-testid="pan-tilt">
-            <h4>Pan ({panAngle.toFixed(1)})</h4>
-            <div className={st.servoRange}>
-                <div>{panConfig.max_angle}&deg;</div>
-                <div className={st.spacer} />
-                <div>{panConfig.min_angle}&deg;</div>
-            </div>
+            <h4 className={st.topLabel}>Pan ({panAngle.toFixed(1)}&deg;)</h4>
+            <h4 className={st.leftLabel}>Tilt ({tiltAngle.toFixed(1)}&deg;)</h4>
             <div className={st.innerContainer}>
-                <div className={st.tiltLabelsContainer}>
-                    <h4>Tilt ({tiltAngle.toFixed(1)})</h4>
-                    <div className={st.servoRange}>
-                        <div>{tiltConfig.max_angle}&deg;</div>
-                        <div className={st.spacer} />
-                        <div>{tiltConfig.min_angle}&deg;</div>
-                    </div>
-                </div>
                 <div
                     className={st.touchGrid}
                     onClick={handleTouch}
