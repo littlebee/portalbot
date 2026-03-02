@@ -214,7 +214,7 @@ export function mapPanTiltToXYSquare(
     const y =
         (yf * containerSize) / (tiltConfig.max_angle - tiltConfig.min_angle);
 
-    return [x - indicatorRadius, y - indicatorRadius];
+    return [Math.max(x - indicatorRadius, 0), Math.max(y - indicatorRadius, 0)];
 }
 
 /**

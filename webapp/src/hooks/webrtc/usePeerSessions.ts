@@ -68,6 +68,13 @@ export function usePeerSessions({
 
         const pc = new WebRTCPeer("view-peer", sendMessage, setRemoteStream);
         pc.createPeerConnection();
+
+        // These are needed by safari or aiortc on the other end (vision service)
+        // will throw an exception like, "ValueError: None is not in list" when
+        // it tries to set the DIRECTIONS of the transceiver.
+        pc.peerConnection?.addTransceiver("video", { direction: "recvonly" });
+        pc.peerConnection?.addTransceiver("audio", { direction: "recvonly" });
+
         viewPeerConnectionRef.current = pc;
 
         return pc;
