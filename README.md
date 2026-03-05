@@ -33,8 +33,11 @@ The largest detected face is displayed on the round 1080x1080 display of the rob
 
 ## How it works
 
-See AGENTS.md for more information on the components of this project.
+![Network Diagram](https://raw.githubusercontent.com/littlebee/portalbot/refs/heads/main/docs/media/portal_bot%20network%20diagram.png)(https://github.com/littlebee/portalbot/blob/main/docs/media/portal_bot%20network%20diagram.png)
 
-![Network Diagram](https://github.com/littlebee/portalbot/blob/main/docs/media/portal_bot%20network%20diagram.png)
+
+This project is built on the [basic_bot robotics platform](https://littlebee.github.io/basic_bot/).
+
+See also, [AGENTS.md](https://github.com/littlebee/portalbot/blob/main/AGENTS.md) for more information on the components of this project.
 
 
