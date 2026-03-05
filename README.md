@@ -35,6 +35,6 @@ The largest detected face is displayed on the round 1080x1080 display of the rob
 
 See AGENTS.md for more information on the components of this project.
 
-[Network Diagram](https://github.com/littlebee/portalbot/blob/main/docs/media/portal_bot%20network%20diagram.png)
+![Network Diagram](https://github.com/littlebee/portalbot/blob/main/docs/media/portal_bot%20network%20diagram.png)
 
 
