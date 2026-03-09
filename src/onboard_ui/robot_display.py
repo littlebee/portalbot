@@ -23,6 +23,7 @@ project_root = Path(__file__).parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
+from src.onboard_ui.renderables.sleeping_eyes import SleepingEyes
 from src.onboard_ui.renderables.lurker_eyes import LurkerEyes
 from src.onboard_ui.renderables.remote_face import RemoteFace
 
@@ -45,6 +46,7 @@ class RobotDisplay:
         self.face_cascade = face_cascade
         self.screen: Optional[pygame.Surface] = None
         self.lurker_eyes: Optional[LurkerEyes] = None
+        self.sleeping_eyes: Optional[SleepingEyes] = None
         self.remote_face: Optional[RemoteFace] = None
 
     def init_pygame(self, window_title: str = "Portalbot"):
@@ -60,6 +62,7 @@ class RobotDisplay:
                 f"Pygame display initialized: {self.display_size}x{self.display_size}"
             )
             self.lurker_eyes = LurkerEyes(self.screen)
+            self.sleeping_eyes = SleepingEyes(self.screen)
             self.remote_face = RemoteFace(
                 self.screen,
                 display_size=self.display_size,
@@ -70,7 +73,7 @@ class RobotDisplay:
             logger.error(f"Failed to initialize pygame: {e}")
             raise
 
-    def draw_robot_eyes(self):
+    def draw_lurker_eyes(self):
         """Draw animated robot eyes when idle"""
         if not self.screen:
             return
@@ -79,6 +82,18 @@ class RobotDisplay:
         self.screen.fill((20, 20, 40))
         if self.lurker_eyes:
             self.lurker_eyes.render(time.time())
+
+        pygame.display.flip()
+
+    def draw_sleeping_eyes(self):
+        """Draw animated robot eyes when idle"""
+        if not self.screen:
+            return
+
+        # Fill background
+        self.screen.fill((20, 20, 40))
+        if self.sleeping_eyes:
+            self.sleeping_eyes.render(time.time())
 
         pygame.display.flip()
 
