@@ -1,5 +1,9 @@
-git+https://github.com/littlebee/basic_bot.git@main
 
+# my stuff
+git+https://github.com/littlebee/basic_bot.git@main
+git+https://github.com/littlebee/renderables.git@main
+
+# other stuff
 cffi
 opencv-python
 pycparser

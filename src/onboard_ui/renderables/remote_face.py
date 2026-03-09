@@ -1,17 +1,8 @@
 #!/usr/bin/env python3
-"""
-Robot display module for rendering UI on the robot's screen.
-
-Handles:
-- Pygame display initialization
-- Animated robot eyes when idle
-- Remote operator video display with face detection
-- Face extraction and validation
-"""
 
 import logging
-import time
 from typing import Optional
+
 
 import cv2
 import numpy as np
@@ -20,10 +11,12 @@ import pygame
 logger = logging.getLogger(__name__)
 
 
-class RobotDisplay:
+class RemoteFace:
     """Manages the robot's pygame display and rendering"""
 
-    def __init__(self, display_size: int = 1080, face_cascade=None):
+    def __init__(
+        self, screen: pygame.Surface, display_size: int = 1080, face_cascade=None
+    ):
         """
         Initialize the robot display.
 
@@ -33,78 +26,12 @@ class RobotDisplay:
         """
         self.display_size = display_size
         self.face_cascade = face_cascade
-        self.screen: Optional[pygame.Surface] = None
+        self.screen = screen
 
-    def init_pygame(self, window_title: str = "Portalbot"):
-        """Initialize pygame display"""
-        try:
-            pygame.init()
-            # Create a square display
-            self.screen = pygame.display.set_mode(
-                (self.display_size, self.display_size)
-            )
-            pygame.display.set_caption(window_title)
-            logger.info(
-                f"Pygame display initialized: {self.display_size}x{self.display_size}"
-            )
-        except Exception as e:
-            logger.error(f"Failed to initialize pygame: {e}")
-            raise
-
-    def draw_robot_eyes(self):
-        """Draw animated robot eyes when idle"""
-        if not self.screen:
-            return
-
-        # Fill background
-        self.screen.fill((20, 20, 40))
-
-        # Simple animated eyes
-        center_x = self.display_size // 2
-        center_y = self.display_size // 2
-        eye_distance = 150
-        eye_radius = 60
-        pupil_radius = 30
-
-        # Animate pupil position with time
-        t = time.time()
-        pupil_offset_x = int(20 * np.sin(t * 0.5))
-        pupil_offset_y = int(20 * np.cos(t * 0.7))
-
-        # Left eye
-        pygame.draw.circle(
-            self.screen,
-            (255, 255, 255),
-            (center_x - eye_distance, center_y),
-            eye_radius,
-        )
-        pygame.draw.circle(
-            self.screen,
-            (20, 20, 40),
-            (center_x - eye_distance + pupil_offset_x, center_y + pupil_offset_y),
-            pupil_radius,
-        )
-
-        # Right eye
-        pygame.draw.circle(
-            self.screen,
-            (255, 255, 255),
-            (center_x + eye_distance, center_y),
-            eye_radius,
-        )
-        pygame.draw.circle(
-            self.screen,
-            (20, 20, 40),
-            (center_x + eye_distance + pupil_offset_x, center_y + pupil_offset_y),
-            pupil_radius,
-        )
-
-        pygame.display.flip()
-
-    def draw_remote_video(self, frame: np.ndarray):
+    def render(self, _t: float, frame: np.ndarray) -> bool:
         """Draw remote operator's video on display"""
         if not self.screen or frame is None:
-            return
+            return False
 
         try:
             rgb_frame = self.normalize_to_rgb(frame)
@@ -133,6 +60,9 @@ class RobotDisplay:
 
         except Exception as e:
             logger.error(f"Error drawing remote video: {e}")
+            return False
+
+        return True
 
     def normalize_to_rgb(self, frame: np.ndarray) -> np.ndarray:
         """Normalize incoming frame formats to RGB for rendering and detection."""
@@ -202,9 +132,3 @@ class RobotDisplay:
         except Exception as e:
             logger.error(f"Error detecting face: {e}")
             return True  # Fail open
-
-    def cleanup(self):
-        """Clean up pygame resources"""
-        if self.screen:
-            pygame.quit()
-            self.screen = None

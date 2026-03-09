@@ -29,8 +29,8 @@ if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
 from src.commons.face_detector import load_face_detector
-from src.ui.robot_display import RobotDisplay
-from src.ui.webrtc_peer import WebRTCPeer
+from src.onboard_ui.robot_display import RobotDisplay
+from src.onboard_ui.webrtc_peer import WebRTCPeer
 from src.commons.constants import PB_ONBOARD_UI_PORT
 from src.commons.logger_utils import get_logger
 
