@@ -169,7 +169,7 @@ class RobotControlHandler:
             "joined_space",
             {
                 "space": space_id,
-                "participants": list(
+                "participants": len(
                     self.space_manager.get_space_participants(space_id)
                 ),
                 "is_robot": True,

@@ -89,7 +89,7 @@ class SpaceManager:
             "joined_space",
             {
                 "space": space_id,
-                "participants": list(self.active_spaces[space_id]),
+                "participants": len(self.active_spaces[space_id]),
             },
         )
         await self.send_servo_config_to_client(client_id)
@@ -98,7 +98,7 @@ class SpaceManager:
         await self.broadcast_to_space(
             space_id,
             "user_joined",
-            {"sid": client_id, "participants": list(self.active_spaces[space_id])},
+            {"sid": client_id, "participants": len(self.active_spaces[space_id])},
             exclude_client_id=client_id,
         )
 
@@ -119,7 +119,7 @@ class SpaceManager:
             await self.broadcast_to_space(
                 space_name,
                 "user_left",
-                {"sid": client_id},
+                {"participants": len(self.active_spaces[space_name])},
                 exclude_client_id=client_id,
             )
 

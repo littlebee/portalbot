@@ -33,22 +33,23 @@ from typing import Optional, Callable
 import aiohttp
 from websockets.client import WebSocketClientProtocol
 
+from basic_bot.commons.hub_state import HubState
+from basic_bot.commons.hub_state_monitor import HubStateMonitor
+from basic_bot.commons import messages
+
 # Add project root to Python path
 project_root = Path(__file__).parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-from src.commons.robot_config import load_robot_config, RobotConfig  # noqa: E402
-from src.commons.control_state_manager import (  # noqa: E402
+from src.commons.robot_config import load_robot_config, RobotConfig
+from src.commons.control_state_manager import (
     ControlStateManager,
 )
-from src.commons.portalbot_websocket_client import (  # noqa: E402
+from src.commons.portalbot_websocket_client import (
     PortalbotWebSocketClient,
 )
 from src.commons.logger_utils import get_logger
-from basic_bot.commons.hub_state import HubState  # noqa: E402
-from basic_bot.commons.hub_state_monitor import HubStateMonitor  # noqa: E402
-from basic_bot.commons import messages  # noqa: E402
 
 logger = get_logger("portalbot_service")
 
@@ -115,6 +116,14 @@ class PortalbotService:
             await messages.send_update_state(
                 self.hub_monitor.connected_socket,
                 data,  # Already formatted as {"servo_angles": {"pan": 90, "tilt": 45}}
+            )
+
+    async def send_user_counts_to_hub(self, viewer_count: int):
+        """Send user counts to central_hub"""
+        if self.hub_monitor and self.hub_monitor.connected_socket:
+            await messages.send_update_state(
+                self.hub_monitor.connected_socket,
+                {"viewer_count": viewer_count},
             )
 
     async def handle_webrtc_offer(self, data: dict):
@@ -323,12 +332,29 @@ class PortalbotService:
             except Exception as e:
                 logger.error(f"Error relaying WebRTC ice candidate to {url}: {e}")
 
+    async def handle_participants(self, data: dict):
+        """
+        Handle participants update from public server and send viewer count to hub.
+        Args:
+            data: Dictionary containing the participants update
+        """
+        viewer_count = data.get("participants")
+        if viewer_count is not None:
+            logger.info(f"Received participants update: {viewer_count} viewers")
+            await self.send_user_counts_to_hub(int(viewer_count))
+
     async def handle_websocket_message(self, message_type: str, data: dict):
         """Handle messages from the public server"""
         if message_type == "joined_space":
             logger.info(f"Successfully joined space: {data.get('space')}")
+
+            await self.handle_participants(data)
+
             servo_config = self.hub_state.get(["servo_config"])
             await self.send_to_public_server("servo_config", servo_config)
+
+        elif message_type == "user_joined" or message_type == "user_left":
+            await self.handle_participants(data)
 
         elif message_type == "control_request":
             # Someone wants to control the robot
@@ -381,7 +407,7 @@ class PortalbotService:
         self.http_session = aiohttp.ClientSession()
 
         try:
-            # Start hub monitor
+            # Start hub monitor (connect to central_hub and subscribe to state updates)
             self.hub_monitor = HubStateMonitor(
                 self.hub_state,
                 "portalbot",
@@ -391,10 +417,9 @@ class PortalbotService:
             )
             self.hub_monitor.start()
 
-            # Connect to public server
+            # Connect to **public_server** on separate websocket
             await self.ws_client.connect()
 
-            # Keep the async loop running
             while self.running:
                 await asyncio.sleep(0.1)
 

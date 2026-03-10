@@ -22,6 +22,9 @@ from typing import Optional
 from fastapi import FastAPI
 import pygame
 from basic_bot.commons import constants as c
+from basic_bot.commons.hub_state import HubState
+from basic_bot.commons.hub_state_monitor import HubStateMonitor
+
 
 # Add project root to Python path
 project_root = Path(__file__).parent.parent
@@ -29,8 +32,8 @@ if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
 from src.commons.face_detector import load_face_detector
-from src.ui.robot_display import RobotDisplay
-from src.ui.webrtc_peer import WebRTCPeer
+from src.onboard_ui.robot_display import RobotDisplay
+from src.onboard_ui.webrtc_peer import WebRTCPeer
 from src.commons.constants import PB_ONBOARD_UI_PORT
 from src.commons.logger_utils import get_logger
 
@@ -38,6 +41,9 @@ logger = get_logger("onboard_ui_service")
 
 running = True
 ui_worker: Optional[threading.Thread] = None
+
+hub_state = HubState()
+hub_monitor: Optional[HubStateMonitor] = None
 
 
 @asynccontextmanager
@@ -48,6 +54,17 @@ async def lifespan(_app: FastAPI):
         logger.info("Starting ui thread")
         ui_worker = threading.Thread(target=ui_thread, daemon=True)
         ui_worker.start()
+
+    global hub_monitor
+    if not hub_monitor:
+        logger.info("Starting hub monitor")
+        hub_monitor = HubStateMonitor(
+            hub_state,
+            "portalbot onboard_ui_service",
+            ["viewer_count"],  # Subscribe to relevant state updates
+        )
+        hub_monitor.start()
+
     try:
         yield
     finally:
@@ -90,10 +107,14 @@ def ui_loop():
                 if event.key == pygame.K_ESCAPE:
                     running = False
 
+        viewer_count = int(hub_state.state.get("viewer_count") or 0)
+
         if webrtc_peer.remote_video_frame is not None:
             display.draw_remote_video(webrtc_peer.remote_video_frame)
+        elif viewer_count > 1:
+            display.draw_lurker_eyes()
         else:
-            display.draw_robot_eyes()
+            display.draw_sleeping_eyes()
 
         # Limit framerate
         clock.tick(30)  # 30 FPS
